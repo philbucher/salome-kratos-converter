@@ -240,6 +240,12 @@ class MainModelPart:
     def GetMeshRead(self):
         return self.mesh_read
     
+    def GetSubModelPart(self, smp_name):
+        if smp_name in self.sub_model_parts:
+            return self.sub_model_parts[smp_name]
+#        else:
+#            raise Exception("SubModelPart " + smp_name + " does not exist!")
+    
 
     def Reset(self):
         self._Initialize()
@@ -453,6 +459,9 @@ class MeshSubmodelPart:
         
     def GetName(self):
         return self.file_name
+    
+    def GetGeomEntites(self):
+        return self.geom_entities_read
     
     
     def Assemble(self):

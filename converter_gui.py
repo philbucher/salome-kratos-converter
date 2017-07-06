@@ -281,9 +281,9 @@ class GUIObject(BaseWindow):
 
     def CreateReadMainMeshWindowEditItem(self, item):
         # item = self.tree_output.identify('item', event.x, event.y)
-        smp_dict = self.tree.item(item,"values")
+        smp_name = self.tree.item(item,"text")
         print("pass")
-        return ReadMeshWindow(self, smp_dict) #Is only called if Item has tag "modifyable"
+        return ReadMeshWindow(self, smp_name) #Is only called if Item has tag "modifyable"
     
 
     def DeleteTreeItems(self, event):
@@ -425,7 +425,7 @@ class GUIObject(BaseWindow):
 
 
 class ReadMeshWindow(BaseWindow):
-    def __init__(self, master, smp_dict=None):
+    def __init__(self, master, smp_name=None):
         window = tk.Toplevel(master.GetWindow())
         super().__init__(window, "Read Mesh", master)
         
@@ -469,10 +469,12 @@ class ReadMeshWindow(BaseWindow):
         button = tk.Button(self.window, text="Save and Close", width=20, command=self.SaveAndCloseWindow)
         button.grid(row=3, column=1, pady=(0,15))
         
-        if smp_dict:
+        if smp_name:
             print("Sth was passed")
-            print(smp_dict)
-            self.FillInputTreeWithFileInfo(smp_dict)
+            print(smp_name)
+            smp = self.master.GetModelPart().GetSubModelPart(smp_name)
+            self.FillInputTree(smp.GetGeomEntites())
+            self.FillOutputTree
 
         
     def ReadAndParseMeshFile(self):
@@ -489,7 +491,7 @@ class ReadMeshWindow(BaseWindow):
                 self.PlotCmdOutput("File was already read!", "red")
             else:
                 self.nodes_read, self.geom_entities_read = parser.ReadAndParseFile(file_path)
-                self.FillInputTreeWithFileInfo(self.geom_entities_read)
+                self.FillInputTree(self.geom_entities_read)
                 # TODO check if num_node > 0!
                 self.file_parsed = True
             
@@ -504,7 +506,7 @@ class ReadMeshWindow(BaseWindow):
         return dictionary
 
 
-    def FillInputTreeWithFileInfo(self, smp_dict):
+    def FillInputTree(self, geom_entities_read):
         self.tree_input.delete(*self.tree_input.get_children())
         self.tree_output.delete(*self.tree_output.get_children())
         
@@ -512,11 +514,19 @@ class ReadMeshWindow(BaseWindow):
         self.tree_output.insert("", "end", text="Nodes", tags="Node")
 
         # Keys are in format identifier_name
-        sorted_keys = sorted(list(smp_dict.keys()))#, key = lambda x: x.split("_")[1]) # Sort keys based on identifier
+        sorted_keys = sorted(list(geom_entities_read.keys()))#, key = lambda x: x.split("_")[1]) # Sort keys based on identifier
 
         for key in sorted_keys:
             label = utils.GetEntityType(key)
             self.tree_input.insert("", "end", text=label, tags="clickable")
+            
+    def FillOutputTree(self, smp_dict):
+        for salome_ID in sorted(smp_dict.keys()):
+            for entity_type in sorted(smp_dict[salome_ID].keys()):
+                for entity_name in sorted(smp_dict[salome_ID][entity_type]):
+                    item_values = (entity_name, salome_ID)
+                    
+                    self.InsertTreeOutputItem(entity_type, item_values)
 
     
     def CreateEntrySelectionWindow(self, event):
@@ -550,7 +560,7 @@ class ReadMeshWindow(BaseWindow):
         button.pack()
 
 
-    def CreateTreeOutputItem(self, OriginEntity, EntityTypeID, EntityName, item_idd):
+    def CreateTreeOutputItem(self, OriginEntity, EntityTypeID, EntityName, item_iid):
         entity_type = ""
         if EntityTypeID == 1: # Element
             entity_type = "Element"
@@ -573,10 +583,18 @@ class ReadMeshWindow(BaseWindow):
         if identical_entry_found:
             self.PlotCmdOutput("This entry exists already!", "red")
         else:
-            if item_idd is None: # Inserting a new item
-                item_idd = self.tree_output.insert("", "end")
+            self.InsertTreeOutputItem(entity_type, item_values, item_iid)
+#            if item_idd is None: # Inserting a new item
+#                item_idd = self.tree_output.insert("", "end")
+#                
+#            self.tree_output.item(item_idd, text=entity_type, values=item_values, tag=(entity_type, "modifyable"))
+
+
+    def InsertTreeOutputItem(self, entity_type, item_values, item_iid=None):
+        if item_iid is None: # Inserting a new item
+            item_iid = self.tree_output.insert("", "end")
                 
-            self.tree_output.item(item_idd, text=entity_type, values=item_values, tag=(entity_type, "modifyable"))
+        self.tree_output.item(item_iid, text=entity_type, values=item_values, tag=(entity_type, "modifyable"))
 
 
     def DeleteTreeOutputItem(self, event):
