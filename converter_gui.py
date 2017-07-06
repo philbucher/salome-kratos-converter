@@ -3,7 +3,6 @@ import tkinter as tk
 from tkinter import messagebox
 from tkinter import filedialog
 from tkinter import ttk
-import os.path
 import json
 
 import converter_utilities as utils
@@ -589,7 +588,7 @@ class ReadMeshWindow(BaseWindow):
     def SaveAndCloseWindow(self):
         if self.file_parsed:
             self.master.GetModelPart().AddMesh(self.tree_output, self.nodes_read, self.geom_entities_read, self.file_name)
-            self.master.UpdateMeshTree(self.GetModelPart().GetTreeItems())
+            self.master.UpdateMeshTree(self.master.GetModelPart().GetTreeItems())
 
         self.CloseWindow()
     

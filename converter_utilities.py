@@ -2,7 +2,6 @@ import sys
 import tkinter as tk
 from os.path import splitext, basename
 import time
-import json
 
 DEBUG = True
 unsaved_changes_exist = False
