@@ -1,0 +1,26 @@
+{
+    "Mesh_1": {
+        "102": {
+            "Element": [
+                "gggg"
+            ]
+        },
+        "203": {
+            "Condition": [
+                "ghdgj"
+            ]
+        },
+        "304": {
+            "Element": [
+                "hhh"
+            ]
+        }
+    },
+    "Sub-mesh_1": {
+        "203": {
+            "Condition": [
+                "jjjjgh"
+            ]
+        }
+    }
+}
