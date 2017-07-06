@@ -281,11 +281,9 @@ class GUIObject(BaseWindow):
 
     def CreateReadMainMeshWindowEditItem(self, item):
         # item = self.tree_output.identify('item', event.x, event.y)
+        smp_dict = self.tree.item(item,"values")
         print("pass")
-        # entity_type = self.tree_output.item(item,"text")
-        # entity_name = self.tree_output.item(item,"values")[0]
-        # origin_entity = self.tree_output.item(item,"values")[1]
-        # return EntrySelectionWindow(self, [origin_entity, entity_type, entity_name, item]) #Is only called if Item has tag "modifyable"
+        return ReadMeshWindow(self, smp_dict) #Is only called if Item has tag "modifyable"
     
 
     def DeleteTreeItems(self, event):
@@ -317,7 +315,7 @@ class GUIObject(BaseWindow):
 
 
     def CreateReadMainMeshWindow(self):
-        return ReadMeshWindow(self, "MainMesh")
+        return ReadMeshWindow(self)
 
 
     def CloseWindow(self):
@@ -385,12 +383,13 @@ class GUIObject(BaseWindow):
             utils.unsaved_changes_exist = False
 
 
-    def UpdateMeshTree(self, tree_items):
+    def UpdateMeshTree(self, tree_items_dict):
         self.tree.delete(*self.tree.get_children())
-        if len(tree_items) > 0:
+        if len(tree_items_dict) > 0:
             self.main_tree_item = self.tree.insert("", "end", text="Main Mesh", open=True)
-            for item in sorted(tree_items):
-                self.tree.insert(self.main_tree_item, "end", text=item, tag="Mesh")
+            for item in sorted(tree_items_dict.keys()):
+                item_values = tree_items_dict[item]
+                self.tree.insert(self.main_tree_item, "end", text=item, values=item_values, tag="Mesh")
 
 
     def WriteMPDAFile(self):
@@ -426,11 +425,10 @@ class GUIObject(BaseWindow):
 
 
 class ReadMeshWindow(BaseWindow):
-    def __init__(self, master, MeshType):
+    def __init__(self, master, smp_dict=None):
         window = tk.Toplevel(master.GetWindow())
         super().__init__(window, "Read Mesh", master)
-
-        self.mesh_type = MeshType
+        
         self.file_parsed = False
 
         tk.Label(self.window, text="Read Entities:").grid(row=1, column=0)
@@ -462,7 +460,7 @@ class ReadMeshWindow(BaseWindow):
         #self.tree_input.tag_bind("Node", "<Double-1>", lambda event : self.CreateEntrySelectionWindowNode(event))
         #self.FillTree(tree, nodes, geom_entities)
         button_text = "Read Mesh File"
-        button = tk.Button(self.window, text=button_text, width=20, command=lambda: self.ReadAndParseMeshFile(self.tree_input, self.tree_output))
+        button = tk.Button(self.window, text=button_text, width=20, command=self.ReadAndParseMeshFile)
         button.grid(row=0, column=0, pady=15)
 
         button = tk.Button(self.window, text="Cancel", width=20, command=self.CloseWindow)
@@ -470,14 +468,19 @@ class ReadMeshWindow(BaseWindow):
 
         button = tk.Button(self.window, text="Save and Close", width=20, command=self.SaveAndCloseWindow)
         button.grid(row=3, column=1, pady=(0,15))
+        
+        if smp_dict:
+            print("Sth was passed")
+            print(smp_dict)
+            self.FillInputTreeWithFileInfo(smp_dict)
 
         
-    def ReadAndParseMeshFile(self, TreeInput, TreeOutput):
+    def ReadAndParseMeshFile(self):
         file_path = utils.GetFilePathOpen("dat")
-        utils.BringWindowToFront(TreeInput.master)
+        utils.BringWindowToFront(self.window)
 
-        TreeInput.delete(*TreeInput.get_children())
-        TreeOutput.delete(*TreeInput.get_children())
+        self.tree_input.delete(*self.tree_input.get_children())
+        self.tree_output.delete(*self.tree_output.get_children())
 
         if file_path: # check if file exists
             self.file_name = utils.GetFileName(file_path)
@@ -486,30 +489,40 @@ class ReadMeshWindow(BaseWindow):
                 self.PlotCmdOutput("File was already read!", "red")
             else:
                 self.nodes_read, self.geom_entities_read = parser.ReadAndParseFile(file_path)
-                self.FillTreeWithFileInfo(TreeInput, TreeOutput, self.nodes_read, self.geom_entities_read)
+                self.FillInputTreeWithFileInfo(self.geom_entities_read)
                 # TODO check if num_node > 0!
                 self.file_parsed = True
             
 
-    def FillTreeWithFileInfo(self, TreeInput, TreeOutput, Nodes, GeomEntities):
-        TreeInput.delete(*TreeInput.get_children())
-        TreeOutput.delete(*TreeOutput.get_children())
-        
-        TreeInput.insert("", "end", text="Nodes")
-        TreeOutput.insert("", "end", text="Nodes", tags="Node")
-
-        # Keys are in format identifier_name
-        sorted_keys = sorted(list(GeomEntities.keys()))#, key = lambda x: x.split("_")[1]) # Sort keys based on identifier
+    def CreateDictionaryFromParsedEntities(self, geom_entities):
+        dictionary = {}
+        sorted_keys = sorted(list(geom_entities.keys()))#, key = lambda x: x.split("_")[1]) # Sort keys based on identifier
 
         for key in sorted_keys:
             label = utils.GetEntityType(key)
-            TreeInput.insert("", "end", text=label, tags="clickable")
+            self.tree_input.insert("", "end", text=label, tags="clickable")
+        return dictionary
+
+
+    def FillInputTreeWithFileInfo(self, smp_dict):
+        self.tree_input.delete(*self.tree_input.get_children())
+        self.tree_output.delete(*self.tree_output.get_children())
+        
+        self.tree_input.insert("", "end", text="Nodes")
+        self.tree_output.insert("", "end", text="Nodes", tags="Node")
+
+        # Keys are in format identifier_name
+        sorted_keys = sorted(list(smp_dict.keys()))#, key = lambda x: x.split("_")[1]) # Sort keys based on identifier
+
+        for key in sorted_keys:
+            label = utils.GetEntityType(key)
+            self.tree_input.insert("", "end", text=label, tags="clickable")
 
     
     def CreateEntrySelectionWindow(self, event):
         item = self.tree_input.identify('item', event.x, event.y)
         origin_entity = self.tree_input.item(item,"text")
-        return EntrySelectionWindow(self, [origin_entity]) #Is only called if Item has tag "clickable"
+        return EntrySelectionWindow(self, origin_entity) #Is only called if Item has tag "clickable"
 
 
     def CreateEntrySelectionWindowEditItem(self, item):
@@ -517,7 +530,7 @@ class ReadMeshWindow(BaseWindow):
         entity_type = self.tree_output.item(item,"text")
         entity_name = self.tree_output.item(item,"values")[0]
         origin_entity = self.tree_output.item(item,"values")[1]
-        return EntrySelectionWindow(self, [origin_entity, entity_type, entity_name, item]) #Is only called if Item has tag "modifyable"
+        return EntrySelectionWindow(self, origin_entity, [entity_type, entity_name, item]) #Is only called if Item has tag "modifyable"
     
 
     def EditTreeOutputItem(self, item):
@@ -588,25 +601,25 @@ class ReadMeshWindow(BaseWindow):
     def SaveAndCloseWindow(self):
         if self.file_parsed:
             self.master.GetModelPart().AddMesh(self.tree_output, self.nodes_read, self.geom_entities_read, self.file_name)
-            self.master.UpdateMeshTree(self.master.GetModelPart().GetTreeItems())
+            self.master.UpdateMeshTree(self.master.GetModelPart().AssembleJSONDict())
 
         self.CloseWindow()
     
 
 
 class EntrySelectionWindow(BaseWindow):
-    def __init__(self, master, arguments):
+    def __init__(self, master, origin_entity, arguments=[]):
         window = tk.Toplevel(master.GetWindow())
         super().__init__(window, "Select Type of Entity", master)
         
-        self.origin_entity = arguments[0]
+        self.origin_entity = origin_entity
         self.InitializeWidgets()
 
         self.item_iid = None
 
-        if len(arguments) == 4:
-            self.SetWidgetEntries(arguments[1], arguments[2])
-            self.item_iid = arguments[3]
+        if len(arguments) == 3:
+            self.SetWidgetEntries(arguments[0], arguments[1])
+            self.item_iid = arguments[2]
 
     
     def InitializeWidgets(self):
