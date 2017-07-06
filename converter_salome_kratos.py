@@ -29,7 +29,6 @@ if DEBUG:
 def main():
     model_part = utils.MainModelPart()
     root = tkinter.Tk()
-#    root.bind('<Control-slash>', quit)
     gui.GUIObject(root, model_part)
     root.mainloop()  
 

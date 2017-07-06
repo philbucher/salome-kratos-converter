@@ -88,10 +88,10 @@ class GUIObject(BaseWindow):
         self.model_part = model_part        
 
         utils.MaximizeWindow(self.window)
-        self.SetMenuBar()
-        self.SetToolBar()
-        self.SetTree()
-        self.CreateTreeContextMenu()
+        self._SetMenuBar()
+        self._SetToolBar()
+        self._SetTree()
+        # self.CreateTreeContextMenu()
         
         self.save_file_path = ""
 
@@ -120,7 +120,7 @@ class GUIObject(BaseWindow):
         return self.model_part
 
 
-    def SetMenuBar(self):
+    def _SetMenuBar(self):
         menubar = tk.Menu(self.window)
                      
         filemenu = tk.Menu(menubar, tearoff=0)
@@ -155,7 +155,7 @@ class GUIObject(BaseWindow):
         self.window.config(menu=menubar)
         
 
-    def SetToolBar(self):
+    def _SetToolBar(self):
         # create a toolbar
         toolbar = tk.Frame(self.window, bd=1, relief=tk.RAISED)
         toolbar2 = tk.Frame(self.window, bd=1, relief=tk.RAISED)
@@ -201,12 +201,12 @@ class GUIObject(BaseWindow):
         self.window.update()
 
 
-    def SetTree(self):
+    def _SetTree(self):
         self.tree = ttk.Treeview(self.window, show='tree')
 
         # self.tree.bind("<Button-3>", self.ShowTreeContextMenu) # show the context menu when rightclicked
-        self.tree.bind("<Double-1>", self.EditDblClickedTreeItem)
-        # self.tree_output.tag_bind("Mesh", "<Double-1>", lambda event : self.EditTreeOutputItem(utils.GetTreeItem(self.tree_output, event)))
+        # self.tree.bind("<Double-1>", self.EditDblClickedTreeItem)
+        self.tree.tag_bind("Mesh", "<Double-1>", lambda event : self.EditTreeItem(utils.GetTreeItem(self.tree, event)))
         self.tree.tag_bind("Mesh", "<Delete>", self.DeleteTreeItems)
 
         self.tree.pack(side=tk.LEFT, fill=tk.Y)
@@ -275,12 +275,19 @@ class GUIObject(BaseWindow):
         print(uuu2["Element"])
 
        
-    def EditSelectedTreeItem(self):
-        if (len(self.tree.selection()) != 1):
-            print("Select One item")
-        else:
-            self.CreateEditWindow(self.tree.selection())
+    def EditTreeItem(self, item):
+        print("About to edit the entry")
+        self.OpenChildWindow(self.CreateReadMainMeshWindowEditItem, item)
 
+
+    def CreateReadMainMeshWindowEditItem(self, item):
+        # item = self.tree_output.identify('item', event.x, event.y)
+        print("pass")
+        # entity_type = self.tree_output.item(item,"text")
+        # entity_name = self.tree_output.item(item,"values")[0]
+        # origin_entity = self.tree_output.item(item,"values")[1]
+        # return EntrySelectionWindow(self, [origin_entity, entity_type, entity_name, item]) #Is only called if Item has tag "modifyable"
+    
 
     def DeleteTreeItems(self, event):
         smp_to_remove = []
