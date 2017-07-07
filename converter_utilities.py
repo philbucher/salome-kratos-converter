@@ -5,7 +5,8 @@ import time
 
 DEBUG = True
 unsaved_changes_exist = False
-conv_file_ending = ".conv.json"
+conv_scheme_file_ending = ".conv.scheme.json"
+conv_project_file_ending = ".conv.proj.json"
 
 SALOME_IDENTIFIERS = {
         102 : "Lines",
@@ -115,8 +116,10 @@ def GetFilePathOpen(FileType):
     file_path = ""
     if (FileType == "dat"):
         file_path = tk.filedialog.askopenfilename(title="Open file",filetypes=[("salome mesh","*.dat")])
-    elif (FileType == conv_file_ending):
-        file_path = tk.filedialog.askopenfilename(title="Open file",filetypes=[("converter files","*" + conv_file_ending)])
+    elif (FileType == conv_project_file_ending):
+        file_path = tk.filedialog.askopenfilename(title="Open file",filetypes=[("converter files","*" + conv_project_file_ending)])
+    elif (FileType == conv_scheme_file_ending):
+        file_path = tk.filedialog.askopenfilename(title="Open file",filetypes=[("converter files","*" + conv_scheme_file_ending)])
         # file_path = tk.filedialog.askopenfilename(initialdir='/home/philippb', title="Open file",filetypes=[("converter files","*" + conv_file_ending)])
     else:
         print("Unsupported FileType") # TODO make messagebox
@@ -252,8 +255,6 @@ class MainModelPart:
     def GetSubModelPart(self, smp_name):
         if smp_name in self.sub_model_parts:
             return self.sub_model_parts[smp_name]
-#        else:
-#            raise Exception("SubModelPart " + smp_name + " does not exist!")
     
 
     def Reset(self):
@@ -282,7 +283,8 @@ class MainModelPart:
     def AddMesh(self, tree_selection, nodes_read, geom_entities_read, file_name):
         smp_dict = self._GetDictFromTree(tree_selection)
 
-        self.sub_model_parts[file_name] = MeshSubmodelPart(file_name, smp_dict, nodes_read, geom_entities_read)
+        self.sub_model_parts[file_name] = MeshSubmodelPart()
+        self.sub_model_parts[file_name].FillWithEntities(file_name, smp_dict, nodes_read, geom_entities_read)
         
         self.mesh_read = True
 
@@ -315,8 +317,29 @@ class MainModelPart:
         self.sub_model_parts.pop(name_smp, None)
 
         self._Assemble() # Update the ModelPart
+
+
+    def Serialize(self):
+        # This function serializes the ModelPart such that it can be saved in a json file
+        serialized_dict = {}
+        for smp_name in sorted(self.sub_model_parts.keys()):
+            smp = self.sub_model_parts[smp_name]
+            serialized_dict.update(smp.Serialize())
+            print(serialized_dict)
+
+        return serialized_dict
+
         
-                
+    def Deserialize(self, serialized_dict):
+        # This function constructs a modelpart from a serialized dictionary
+        self.Reset()
+
+        for smp_name in sorted(serialized_dict.keys()):
+            self.sub_model_parts[smp_name] = MeshSubmodelPart()
+            print(serialized_dict[smp_name])
+            self.sub_model_parts[smp_name].Deserialize(smp_name, serialized_dict[smp_name])
+
+
     def _Assemble(self):
         # TODO Check if this was done before! (same for the submodelparts)
         self._InitializeMesh()
@@ -460,19 +483,60 @@ class MainModelPart:
 
 
 class MeshSubmodelPart:
-    def __init__(self, file_name, dictionary, nodes_read, geom_entities_read):
-        self.file_name = file_name
-        self.dictionary = dictionary
-        self.nodes_read = nodes_read
-        self.geom_entities_read = geom_entities_read
-        self.dict_used_for_assembly = None
-        self.Initialize()
+    def __init__(self):
+        pass
         
         
     def Initialize(self):
         self.nodes = {}
         self.elements = {}
         self.conditions = {}
+
+    def FillWithEntities(self, file_name, dictionary, nodes_read, geom_entities_read):
+        self.file_name = file_name
+        self.dictionary = dictionary
+        self.nodes_read = nodes_read
+        self.geom_entities_read = geom_entities_read
+        self.dict_used_for_assembly = None
+        self.Initialize()
+
+    def Serialize(self):
+        serialized_smp = {}
+        print("Serializing" , self.file_name)
+
+        serialized_smp["mesh_information"] = self.dictionary
+        serialized_smp["nodes_read"] = self._SerializeNodesRead()
+        serialized_smp["geom_entities_read"] = self._SerializeGeomEntitiesRead()
+
+        return {self.file_name : serialized_smp}
+
+    def _SerializeNodesRead(self):
+        return {}
+
+    def _SerializeGeomEntitiesRead(self):
+        return {}
+
+    def Deserialize(self, smp_name, serialized_smp):
+        dictionary = serialized_smp["mesh_information"]
+        nodes_read = {}
+        geom_entities_read = {}
+        if "nodes_read" in serialized_smp:
+            nodes_read  = self._DeserializeNodesRead(serialized_smp["nodes_read"])
+            if "geom_entities_read" in serialized_smp: # Geometric Entities can only exist if there are nodes!
+                geom_entities_read = self._DeserializeGeomEntitiesRead(serialized_smp["geom_entities_read"])
+
+        self.FillWithEntities(smp_name, dictionary, nodes_read, geom_entities_read)
+
+        print("Deserializing" , smp_name)
+
+    
+    def _DeserializeNodesRead(self, serialized_nodes_read):
+        pass
+
+
+    def _DeserializeGeomEntitiesRead(self, serialized_geom_entities_read):
+        pass
+
 
     def Update(self, dictionary):
         self.dictionary = dictionary

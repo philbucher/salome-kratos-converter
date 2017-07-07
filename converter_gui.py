@@ -23,6 +23,10 @@ import matplotlib.pyplot as plt
 from matplotlib import cm
 import numpy as np
 
+# TODO sort selection window by entities (nodes, elements, conditions)
+# TODO add geometrical information to the Kratos entities
+# TODO initial directories
+
 
 class BaseWindow(): # This is the base class for all window classes
     def __init__(self, window, window_title, master=None):
@@ -97,10 +101,10 @@ class GUIObject(BaseWindow):
         self.child_window_open = False
 
         self.window.bind("<Control-n>", lambda event: self._NewProject())
-        self.window.bind("<Control-o>", lambda event: self.OpenConverterFile())
+        self.window.bind("<Control-o>", lambda event: self._OpenConverterProject())
         self.window.bind("<Control-w>", lambda event: self._CloseProject())
-        self.window.bind("<Control-s>", lambda event: self.SaveConverterFile(False))
-        self.window.bind("<Control-Shift-S>", lambda event: self.SaveConverterFile(True))
+        self.window.bind("<Control-s>", lambda event: self._SaveConverterProject(False))
+        self.window.bind("<Control-Shift-S>", lambda event: self._SaveConverterProject(True))
 
         self._Initialize()
 
@@ -124,10 +128,13 @@ class GUIObject(BaseWindow):
                      
         filemenu = tk.Menu(menubar, tearoff=0)
         filemenu.add_command(label="New", command=self._NewProject)
-        filemenu.add_command(label="Open", command=self.OpenConverterFile)
-        filemenu.add_command(label="Save", command=lambda: self.SaveConverterFile(False))
-        filemenu.add_command(label="Save as...", command=lambda: self.SaveConverterFile(True))
+        filemenu.add_command(label="Open", command=self._OpenConverterProject)
+        filemenu.add_command(label="Save", command=lambda: self._SaveConverterProject(False))
+        filemenu.add_command(label="Save as...", command=lambda: self._SaveConverterProject(True))
         filemenu.add_command(label="Close", command=self._CloseProject)
+        filemenu.add_separator()
+        filemenu.add_command(label="Export Converter Scheme", command=self._ExportConverterScheme)
+        filemenu.add_command(label="Import Converter Scheme", command=self._ImportConverterScheme)
         filemenu.add_separator()
         filemenu.add_command(label="Exit", command=self.CloseWindow)
         menubar.add_cascade(label="Project", menu=filemenu)
@@ -348,30 +355,63 @@ class GUIObject(BaseWindow):
             self._ResetGUI()
             self.PlotCmdOutput("Closed project", "orange")
 
-    def OpenConverterFile(self):
-        file_path = utils.GetFilePathOpen(utils.conv_file_ending)
-        json_dict = {}
+
+    def _OpenConverterProject(self):
+        file_path = utils.GetFilePathOpen(utils.conv_project_file_ending)
+  
         if file_path:
+            serialized_model_part_dict = {}
+            with open(file_path, "r") as json_file:
+                serialized_model_part_dict = json.load(json_file)
+
+            self.model_part.Deserialize(serialized_model_part_dict)
+
+            self.UpdateMeshTree(self.model_part.AssembleJSONDict())
+
+
+    def _SaveConverterProject(self, save_as):
+        if (self.save_file_path == "" or save_as):
+            input_save_file_path = tk.filedialog.asksaveasfilename(title="Select file",
+                                     filetypes=[("converter files","*" + utils.conv_project_file_ending)])
+            
+            if input_save_file_path: # A file path was returned
+                if not input_save_file_path.endswith(utils.conv_project_file_ending):
+                    input_save_file_path += utils.conv_project_file_ending
+
+                self.save_file_path = input_save_file_path
+        
+
+        if self.save_file_path == "":
+            self.PlotCmdOutput("File was not saved", "red")
+        else:
+            serialized_model_part_dict = self.model_part.Serialize()
+            with open(self.save_file_path, "w") as save_file:
+                json.dump(serialized_model_part_dict, save_file, sort_keys = True, indent = 4)
+            
+            self.PlotCmdOutput("Saved the file", "green")
+            utils.unsaved_changes_exist = False
+
+
+    def _ImportConverterScheme(self):
+        file_path = utils.GetFilePathOpen(utils.conv_scheme_file_ending)
+
+        if file_path:
+            json_dict = {}
             with open(file_path, "r") as json_file:
                 json_dict = json.load(json_file)
 
             self.UpdateMeshTree(json_dict)
 
 
-    def SaveConverterFile(self, save_as):
-        if (self.save_file_path == "" or save_as):
-            save_file_path = tk.filedialog.asksaveasfilename(title="Select file",
-                                     filetypes=[("converter files","*" + utils.conv_file_ending)])
-            if save_file_path:
-                if not save_file_path.endswith(utils.conv_file_ending):
-                    save_file_path += utils.conv_file_ending
-                    self.save_file_path = save_file_path
-            
-        if self.save_file_path == "":
-            self.PlotCmdOutput("File was not saved", "red")
-        else:
+    def _ExportConverterScheme(self):
+        input_save_file_path = tk.filedialog.asksaveasfilename(title="Select file",
+                                    filetypes=[("converter files","*" + utils.conv_scheme_file_ending)])
+        if input_save_file_path:
+            if not input_save_file_path.endswith(utils.conv_scheme_file_ending):
+                input_save_file_path += utils.conv_scheme_file_ending
+
             model_part_dict = self.model_part.AssembleJSONDict()
-            with open(self.save_file_path, "w") as save_file:
+            with open(input_save_file_path, "w") as save_file:
                 json.dump(model_part_dict, save_file, sort_keys = True, indent = 4)
             
             self.PlotCmdOutput("Saved the file", "green")
@@ -511,11 +551,12 @@ class ReadMeshWindow(BaseWindow):
         self.tree_output.insert("", "end", text="Nodes", tags="Node")
 
         # Keys are in format identifier_name
-        sorted_keys = sorted(list(geom_entities_read.keys()))#, key = lambda x: x.split("_")[1]) # Sort keys based on identifier
+        if geom_entities_read: # check if geom entities are present
+            sorted_keys = sorted(list(geom_entities_read.keys()))#, key = lambda x: x.split("_")[1]) # Sort keys based on identifier
 
-        for key in sorted_keys:
-            label = utils.GetEntityType(key)
-            self.tree_input.insert("", "end", text=label, tags="clickable")
+            for key in sorted_keys:
+                label = utils.GetEntityType(key)
+                self.tree_input.insert("", "end", text=label, tags="clickable")
             
     def FillOutputTree(self, smp_dict):
         for salome_ID in sorted(smp_dict.keys()):
