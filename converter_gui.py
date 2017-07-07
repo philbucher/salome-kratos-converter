@@ -128,26 +128,22 @@ class GUIObject(BaseWindow):
         filemenu.add_command(label="Save", command=lambda: self.SaveConverterFile(False))
         filemenu.add_command(label="Save as...", command=lambda: self.SaveConverterFile(True))
         filemenu.add_command(label="Close", command=self._CloseProject)
-
         filemenu.add_separator()
-
-
         filemenu.add_command(label="Exit", command=self.CloseWindow)
         menubar.add_cascade(label="Project", menu=filemenu)
-        editmenu = tk.Menu(menubar, tearoff=0)
-        editmenu.add_command(label="Undo", command=self.donothing)
-
-        editmenu.add_separator()
-
-        editmenu.add_command(label="Cut", command=self.donothing)
-        editmenu.add_command(label="Copy", command=self.donothing)
-        editmenu.add_command(label="Paste", command=self.donothing)
-        editmenu.add_command(label="Delete", command=self.donothing)
-        editmenu.add_command(label="Select All", command=self.donothing)
-
-        menubar.add_cascade(label="Edit", menu=editmenu)
+        
+        # editmenu = tk.Menu(menubar, tearoff=0)
+        # editmenu.add_command(label="Undo", command=self.donothing)
+        # editmenu.add_separator()
+        # editmenu.add_command(label="Cut", command=self.donothing)
+        # editmenu.add_command(label="Copy", command=self.donothing)
+        # editmenu.add_command(label="Paste", command=self.donothing)
+        # editmenu.add_command(label="Delete", command=self.donothing)
+        # editmenu.add_command(label="Select All", command=self.donothing)
+        # menubar.add_cascade(label="Edit", menu=editmenu)
+        
         helpmenu = tk.Menu(menubar, tearoff=0)
-        helpmenu.add_command(label="Help Index", command=self.donothing)
+        # helpmenu.add_command(label="Help Index", command=self.donothing)
         helpmenu.add_command(label="About...", command=self.ShowAboutInfo)
         menubar.add_cascade(label="Help", menu=helpmenu)
         
@@ -165,14 +161,14 @@ class GUIObject(BaseWindow):
         b = tk.Button(toolbar, text="Write MDPA", width=14, command=self.WriteMPDAFile)
         b.pack(side=tk.LEFT, padx=2, pady=2)
 
-        b = tk.Button(toolbar, text="Read MDPA", width=14, command=print("Nothing"))
-        b.pack(side=tk.LEFT, padx=2, pady=2)
+        # b = tk.Button(toolbar, text="Read MDPA", width=14, command=print("Nothing"))
+        # b.pack(side=tk.LEFT, padx=2, pady=2)
 
-        b = tk.Button(toolbar, text="Output PostFile", width=14, command=self.CreatePlot)
-        b.pack(side=tk.LEFT, padx=2, pady=2)
+        # b = tk.Button(toolbar, text="Output PostFile", width=14, command=self.CreatePlot)
+        # b.pack(side=tk.LEFT, padx=2, pady=2)
 
-        b = tk.Button(toolbar, text="Create Plot", width=14, command=self.CreatePlot)
-        b.pack(side=tk.LEFT, padx=2, pady=2)
+        # b = tk.Button(toolbar, text="Create Plot", width=14, command=self.CreatePlot)
+        # b.pack(side=tk.LEFT, padx=2, pady=2)
 
         toolbar.pack(side=tk.TOP, fill=tk.X)
 
@@ -275,7 +271,6 @@ class GUIObject(BaseWindow):
 
        
     def EditTreeItem(self, item):
-        print("About to edit the entry")
         self.OpenChildWindow(self.CreateReadMainMeshWindowEditItem, item)
 
 
@@ -430,6 +425,7 @@ class ReadMeshWindow(BaseWindow):
         super().__init__(window, "Read Mesh", master)
         
         self.file_parsed = False
+        self.edited_mesh = False
 
         tk.Label(self.window, text="Read Entities:").grid(row=1, column=0)
         tk.Label(self.window, text="Entities to be written to MDPA:").grid(row=1, column=1)
@@ -469,23 +465,24 @@ class ReadMeshWindow(BaseWindow):
         button = tk.Button(self.window, text="Save and Close", width=20, command=self.SaveAndCloseWindow)
         button.grid(row=3, column=1, pady=(0,15))
         
-        if smp_name:
-            print("Sth was passed")
-            print(smp_name)
+        if smp_name: # This means that an existing mesh is edited
             smp = self.master.GetModelPart().GetSubModelPart(smp_name)
             self.FillInputTree(smp.GetGeomEntites())
-            self.FillOutputTree
+            self.FillOutputTree(self.master.GetModelPart().GetSubModelPart(smp_name).GetDictionary())
+            self.edited_mesh = True
+            self.smp_name = smp_name
 
         
     def ReadAndParseMeshFile(self):
         file_path = utils.GetFilePathOpen("dat")
         utils.BringWindowToFront(self.window)
 
-        self.tree_input.delete(*self.tree_input.get_children())
-        self.tree_output.delete(*self.tree_output.get_children())
-
         if file_path: # check if file exists
+            self.tree_input.delete(*self.tree_input.get_children())
+            self.tree_output.delete(*self.tree_output.get_children())
+
             self.file_name = utils.GetFileName(file_path)
+
             
             if self.master.GetModelPart().FileExists(self.file_name):
                 self.PlotCmdOutput("File was already read!", "red")
@@ -547,6 +544,7 @@ class ReadMeshWindow(BaseWindow):
         self.OpenChildWindow(self.CreateEntrySelectionWindowEditItem, item)
 
 
+    # this was used with the context menu
     # def EditSelectedTreeItem(self):
     #     if (len(self.tree_output.selection()) != 1):
     #         print("Select One item")
@@ -617,9 +615,17 @@ class ReadMeshWindow(BaseWindow):
     #     self.tree_context_menu.add_command(label="Delete", command=self.DeleteTreeItems)
 
     def SaveAndCloseWindow(self):
-        if self.file_parsed:
+        if self.file_parsed and self.edited_mesh: # A mesh was edited but then re-read (overwritten)
+            self.master.GetModelPart().RemoveSubmodelPart(self.smp_name)
             self.master.GetModelPart().AddMesh(self.tree_output, self.nodes_read, self.geom_entities_read, self.file_name)
-            self.master.UpdateMeshTree(self.master.GetModelPart().AssembleJSONDict())
+
+        if self.file_parsed and not self.edited_mesh: # A mesh was read
+            self.master.GetModelPart().AddMesh(self.tree_output, self.nodes_read, self.geom_entities_read, self.file_name)
+       
+        elif not self.file_parsed and self.edited_mesh: # A mesh was edited
+            self.master.GetModelPart().UpdateMesh(self.smp_name, self.tree_output)
+       
+        self.master.UpdateMeshTree(self.master.GetModelPart().AssembleJSONDict())
 
         self.CloseWindow()
     

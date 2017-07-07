@@ -4,3 +4,5 @@
 # Compiled python
 *.pyc
 
+# mdpa files
+*.mdpa

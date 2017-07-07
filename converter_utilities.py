@@ -18,34 +18,41 @@ SALOME_IDENTIFIERS = {
 
 ELEMENTS = {
   "0_Generic" : {
-      2 : [
+      2 : [ "Element2D2N",
+
           ],
-      3 : ["Element2D3N"
+      3 : [ "Element2D3N",
+            "Element3D3N"
           ],
-      4 : ["Element3D4N"
+      4 : [ "Element3D4N"
           ]
   },
   "1_Fluid" : {
       2 : [
           ],
-      3 : [
-          "Element2D3N"
+      3 : [ "Element2D3N"
           ],
-      4 : [
-          "Elemen3D4N"
+      4 : [ "Elemen3D4N"
           ]
   },
   "2_Structure" : {
-      2 : ["CrBeamElement3D2N",
-          "CrLinearBeamElement3D2N"
+      1 : [ "NodalConcentratedElement2D1N",
+            "NodalConcentratedDampedElement2D1N",
+            "NodalConcentratedElement3D1N",
+            "NodalConcentratedDampedElement3D1N"
           ],
-      3 : ["PreStressMembraneElement3D3N",
-          "ShellThinElementCorotational3D3N",
-          "ShellThickElementCorotational3D3N"
+      2 : [ "TrussElement3D2N",
+            "TrussLinearElement3D2N",
+            "CrBeamElement3D2N",
+            "CrLinearBeamElement3D2N"
           ],
-      4 : ["PreStressMembraneElement3D4N",
-          "ShellThinElementCorotational3D4N",
-          "ShellThickElementCorotational3D4N"
+      3 : [ "PreStressMembraneElement3D3N",
+            "ShellThinElementCorotational3D3N",
+            "ShellThickElementCorotational3D3N"
+          ],
+      4 : [ "PreStressMembraneElement3D4N",
+            "ShellThinElementCorotational3D4N",
+            "ShellThickElementCorotational3D4N"
           ]
   }
 }
@@ -53,18 +60,21 @@ ELEMENTS = {
 
 CONDITIONS = {
   "0_Generic" : {
-      2 : [
+      1 : [ "PointCondition2D1N",
+            "PointCondition3D1N"
           ],
-      3 : [
+      2 : [ "LineCondition2D2N",
+            "LineCondition3D2N",
           ],
-      4 : [
+      3 : [ "SurfaceCondition3D3N"            
+          ],
+      4 : [ "SurfaceCondition3D4N"
           ]
   },
   "1_Fluid" : {
-      2 : ["WallCondition2D2N"
+      2 : [ "WallCondition2D2N"
           ],
-      3 : [
-          "WallCondition3D3N"
+      3 : [ "WallCondition3D3N"
           ],
       4 : [
           ]
@@ -74,11 +84,10 @@ CONDITIONS = {
           ],
       3 : [
           ],
-      4 : ["SurfaceLoadCondition3D4N",
+      4 : [ "SurfaceLoadCondition3D4N",
           ]
   }
 }
-
 
 # Functions related to Window
 def BringWindowToFront(window):
@@ -271,27 +280,36 @@ class MainModelPart:
         
         
     def AddMesh(self, tree_selection, nodes_read, geom_entities_read, file_name):
-        smp_dict = {}
-
-        for child in tree_selection.get_children():
-            if (tree_selection.tag_has("Element", child)):
-                item_values = tree_selection.item(child,"values")
-                element_name = item_values[0]
-                salome_identifier = int(item_values[1].split("_")[0])
-                
-                self.AddEntryToDict(smp_dict, salome_identifier, "Element", element_name)
-
-            if (tree_selection.tag_has("Condition", child)):
-                item_values = tree_selection.item(child,"values")
-                condition_name = item_values[0]
-                salome_identifier = int(item_values[1].split("_")[0])
-                
-                self.AddEntryToDict(smp_dict, salome_identifier, "Condition", condition_name)
+        smp_dict = self._GetDictFromTree(tree_selection)
 
         self.sub_model_parts[file_name] = MeshSubmodelPart(file_name, smp_dict, nodes_read, geom_entities_read)
         
         self.mesh_read = True
+
+    def UpdateMesh(self, smp_name, tree):
+        self.sub_model_parts[smp_name].Update(self._GetDictFromTree(tree))
+
+
+    def _GetDictFromTree(self, tree):
+        dictionary = {}
+
+        for child in tree.get_children():
+            if (tree.tag_has("Element", child)):
+                item_values = tree.item(child,"values")
+                element_name = item_values[0]
+                salome_identifier = int(item_values[1].split("_")[0])
+                
+                self.AddEntryToDict(dictionary, salome_identifier, "Element", element_name)
+
+            if (tree.tag_has("Condition", child)):
+                item_values = tree.item(child,"values")
+                condition_name = item_values[0]
+                salome_identifier = int(item_values[1].split("_")[0])
+                
+                self.AddEntryToDict(dictionary, salome_identifier, "Condition", condition_name)
         
+        return dictionary
+
     
     def RemoveSubmodelPart(self, name_smp):
         self.sub_model_parts.pop(name_smp, None)
@@ -455,6 +473,9 @@ class MeshSubmodelPart:
         self.nodes = {}
         self.elements = {}
         self.conditions = {}
+
+    def Update(self, dictionary):
+        self.dictionary = dictionary
         
         
     def GetName(self):
@@ -477,6 +498,8 @@ class MeshSubmodelPart:
         
     
     def _AddNodes(self):
+        self.nodes.clear()
+
         for line in self.nodes_read:
             words = line.split()
             salome_ID = int(words[0])
@@ -488,6 +511,8 @@ class MeshSubmodelPart:
         
         
     def _AddElements(self):
+        self.elements.clear()
+
         for salome_identifier in self.dictionary.keys():
             geom_entities = self.geom_entities_read[salome_identifier]
             
@@ -502,6 +527,8 @@ class MeshSubmodelPart:
         
         
     def _AddConditions(self):
+        self.conditions.clear()
+
         for salome_identifier in self.dictionary.keys():
             geom_entities = self.geom_entities_read[salome_identifier]
             
