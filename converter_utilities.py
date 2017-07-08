@@ -190,6 +190,13 @@ class GeometricEntitySalome:
     def GetNodeList(self):
         return self.node_list
 
+    def Serialize(self):
+        return {}
+        
+
+    def Deserialize(self):
+        pass
+
 
 class Node:
     def __init__(self, origin_ID, coord_x, coord_y, coord_z):
