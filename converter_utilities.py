@@ -191,19 +191,18 @@ class GeometricEntitySalome:
         return self.node_list
 
     def Serialize(self):
-        return {}
+        serialized_entity = {self.salome_ID : [self.salome_identifier, self.node_list]}
+        return serialized_entity
         
 
-    def Deserialize(self):
-        pass
 
-
-class Node:
-    def __init__(self, origin_ID, coord_x, coord_y, coord_z):
-        self.origin_ID = origin_ID
-        self.X = coord_x
-        self.y = coord_y
-        self.z = coord_z
+#class Node: # Not used at the moment. So far the nodes from salome are used directly.
+# Using this one could write the nodes in a consecutive order in case not all the meshes are used
+#    def __init__(self, origin_ID, coord_x, coord_y, coord_z):
+#        self.origin_ID = origin_ID
+#        self.X = coord_x
+#        self.y = coord_y
+#        self.z = coord_z
         
         
 class GeometricalObject:
@@ -332,7 +331,6 @@ class MainModelPart:
         for smp_name in sorted(self.sub_model_parts.keys()):
             smp = self.sub_model_parts[smp_name]
             serialized_dict.update(smp.Serialize())
-            print(serialized_dict)
 
         return serialized_dict
 
@@ -343,8 +341,9 @@ class MainModelPart:
 
         for smp_name in sorted(serialized_dict.keys()):
             self.sub_model_parts[smp_name] = MeshSubmodelPart()
-            print(serialized_dict[smp_name])
             self.sub_model_parts[smp_name].Deserialize(smp_name, serialized_dict[smp_name])
+        
+        self.mesh_read = True
 
 
     def _Assemble(self):
@@ -436,6 +435,7 @@ class MainModelPart:
             
     def _WriteNodes(self, file):
         file.write("Begin Nodes\n")
+        print(sorted(list(self.nodes.keys())))
         for ID in sorted(list(self.nodes.keys())):
             coords = self.nodes[ID]
             
@@ -517,11 +517,22 @@ class MeshSubmodelPart:
 
         return {self.file_name : serialized_smp}
 
+
     def _SerializeNodesRead(self):
-        return {}
+        self._AddNodes() # Update the internal information
+        
+        return self.nodes
+
 
     def _SerializeGeomEntitiesRead(self):
-        return {}
+        serialized_geom_entities = {}
+        
+        for salome_ID in self.geom_entities_read:
+            for entity in self.geom_entities_read[salome_ID]:
+                serialized_geom_entities.update(entity.Serialize())
+            
+        return serialized_geom_entities
+
 
     def Deserialize(self, smp_name, serialized_smp):
         dictionary = serialized_smp["mesh_information"]
@@ -534,15 +545,30 @@ class MeshSubmodelPart:
 
         self.FillWithEntities(smp_name, dictionary, nodes_read, geom_entities_read)
 
-        print("Deserializing" , smp_name)
+        print(self.geom_entities_read.keys())
+
+        print("Deserialized" , smp_name)
 
     
     def _DeserializeNodesRead(self, serialized_nodes_read):
-        pass
+        return serialized_nodes_read # Nodes don't need deserialization
 
 
     def _DeserializeGeomEntitiesRead(self, serialized_geom_entities_read):
-        pass
+        deserialized_geom_entities_read = {}
+        
+        for salome_ID in serialized_geom_entities_read:
+            salome_identifier = serialized_geom_entities_read[salome_ID][0]
+            node_list = serialized_geom_entities_read[salome_ID][1]
+    
+            geom_entity = GeometricEntitySalome(salome_ID, salome_identifier, node_list)
+        
+            if salome_identifier not in deserialized_geom_entities_read: # geom entities with this identifier are already existing # TODO don't I have to use .key() here?
+                deserialized_geom_entities_read[salome_identifier] = []
+
+            deserialized_geom_entities_read[salome_identifier].append(geom_entity)
+        
+        return deserialized_geom_entities_read
 
 
     def Update(self, dictionary):
@@ -569,23 +595,15 @@ class MeshSubmodelPart:
         
     
     def _AddNodes(self):
-        self.nodes.clear()
-
-        for line in self.nodes_read:
-            words = line.split()
-            salome_ID = int(words[0])
-            coords = [float(words[1]), float(words[2]), float(words[3])] # X, Y, Z
-            if salome_ID in self.nodes:
-                raise Exception("Node with ID", salome_ID, "already exists!")
-            else:
-                self.nodes[salome_ID] = coords
+        self.nodes = self.nodes_read        
         
         
     def _AddElements(self):
         self.elements.clear()
 
+        print(self.dictionary)
         for salome_identifier in self.dictionary.keys():
-            geom_entities = self.geom_entities_read[salome_identifier]
+            geom_entities = self.geom_entities_read[int(salome_identifier)] #int conversion necessary bcs self.dictionary contains strings for some reason ... TODO
             
             if "Element" in self.dictionary[salome_identifier]:
                 element_list = self.dictionary[salome_identifier]["Element"]
@@ -601,7 +619,7 @@ class MeshSubmodelPart:
         self.conditions.clear()
 
         for salome_identifier in self.dictionary.keys():
-            geom_entities = self.geom_entities_read[salome_identifier]
+            geom_entities = self.geom_entities_read[int(salome_identifier)]
             
             if "Condition" in self.dictionary[salome_identifier]:
                 condition_list = self.dictionary[salome_identifier]["Condition"]

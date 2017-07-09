@@ -26,6 +26,7 @@ import numpy as np
 # TODO sort selection window by entities (nodes, elements, conditions)
 # TODO add geometrical information to the Kratos entities
 # TODO initial directories
+# TODO Updating the file tree should be called without arguments => get it directly from the ModelPart
 
 
 class BaseWindow(): # This is the base class for all window classes
@@ -105,6 +106,8 @@ class GUIObject(BaseWindow):
         self.window.bind("<Control-w>", lambda event: self._CloseProject())
         self.window.bind("<Control-s>", lambda event: self._SaveConverterProject(False))
         self.window.bind("<Control-Shift-S>", lambda event: self._SaveConverterProject(True))
+        
+        self.window.bind("<Control-r>", lambda event: self.CreateReadMainMeshWindow())
 
         self._Initialize()
 
@@ -386,7 +389,8 @@ class GUIObject(BaseWindow):
         else:
             serialized_model_part_dict = self.model_part.Serialize()
             with open(self.save_file_path, "w") as save_file:
-                json.dump(serialized_model_part_dict, save_file, sort_keys = True, indent = 4)
+                json.dump(serialized_model_part_dict, save_file)
+                # json.dump(serialized_model_part_dict, save_file, sort_keys = True, indent = 4) # Do this only for debugging, file size is much larger!
             
             self.PlotCmdOutput("Saved the file", "green")
             utils.unsaved_changes_exist = False

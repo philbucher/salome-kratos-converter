@@ -8,7 +8,15 @@ def ReadAndParseFile(file_path):
         line = lines[0].split()
         num_nodes = int(line[0])
         # num_elems = int(line[1])
-        nodes = lines[1:num_nodes+1]
+        # nodes = lines[1:num_nodes+1]
+        
+        nodes = {}
+        for line in lines[1:num_nodes+1]:
+            words = line.split()
+            salome_ID = int(words[0])
+            coords = [float(words[1]), float(words[2]), float(words[3])] # X, Y, Z
+            nodes.update({salome_ID : coords})
+        
         geom_entities = {}
 
         # Read Geometric Objects (Lines, Triangles, Quads, ...)
