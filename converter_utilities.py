@@ -1,12 +1,39 @@
+'''
+  ___   _   _    ___  __  __ ___    _  __         _             ___                     _           
+ / __| /_\ | |  / _ \|  \/  | __|__| |/ /_ _ __ _| |_ ___ ___  / __|___ _ ___ _____ _ _| |_ ___ _ _ 
+ \__ \/ _ \| |_| (_) | |\/| | _|___| ' <| '_/ _` |  _/ _ (_-< | (__/ _ \ ' \ V / -_) '_|  _/ -_) '_|
+ |___/_/ \_\____\___/|_|  |_|___|  |_|\_\_| \__,_|\__\___/__/  \___\___/_||_\_/\___|_|  \__\___|_|  
+
+
+Salome to Kratos Converter
+Converts *.dat files that contain mesh information to *.mdpa file to be used as input for Kratos Multiphysics.
+Author: Philipp Bucher
+Chair of Structural Analysis
+June 2017
+Intended for non-commercial use in research
+'''
+
+### TODO list ###
+# sort selection window by entities (nodes, elements, conditions)
+# add geometrical information to the Kratos entities
+# initial directories
+
+
+# Set this Variable to "True" for debugging
+DEBUG = True
+
+# Python imports
 import sys
 import tkinter as tk
 from os.path import splitext, basename
 import time
 import logging
-logging.basicConfig(level=logging.DEBUG)
 
-DEBUG = True
-unsaved_changes_exist = False
+if DEBUG:
+    logging.basicConfig(level=logging.DEBUG)
+else:
+    logging.basicConfig(level=logging.INFO)
+
 conv_scheme_file_ending = ".conv.scheme.json"
 conv_project_file_ending = ".conv.proj.json"
 
@@ -92,10 +119,50 @@ CONDITIONS = {
   }
 }
 
+
+def ReadAndParseFile(file_path):
+    with open(file_path,"r") as f:
+        lines = f.readlines()
+        # .dat header
+        line = lines[0].split()
+        num_nodes = int(line[0])
+        # num_elems = int(line[1])
+        # nodes = lines[1:num_nodes+1]
+        
+        nodes = {}
+        for line in lines[1:num_nodes+1]:
+            words = line.split()
+            salome_ID = int(words[0])
+            coords = [float(words[1]), float(words[2]), float(words[3])] # X, Y, Z
+            nodes.update({salome_ID : coords})
+        
+        geom_entities = {}
+
+        # Read Geometric Objects (Lines, Triangles, Quads, ...)
+        for line in lines[num_nodes+1:]:
+            words = line.split()
+            salome_ID = int(words[0])
+            salome_identifier = int(words[1]) # get the salome identifier
+            node_list = []
+            for i in range(2, len(words)):
+                node_list.append(int(words[i]))
+            
+            geom_entity = GeometricEntitySalome(salome_ID,
+                                          salome_identifier,
+                                          node_list)
+            
+            if salome_identifier not in geom_entities: # geom entities with this identifier are already existing # TODO don't I have to use .key() here?
+                geom_entities[salome_identifier] = []
+
+            geom_entities[salome_identifier].append(geom_entity)
+
+        return nodes, geom_entities
+
 # Functions related to Window
 def BringWindowToFront(window):
     window.lift()
     window.attributes('-topmost', 1)
+    window.focus_force() # Forcing the focus on the window, seems to be not the nicest solution but it works
     window.after_idle(window.attributes,'-topmost',False) # TODO check under Windows
 
 
@@ -163,6 +230,15 @@ def GetOS():
     return os_name
 
 
+def PrintLogo():
+    print('''
+  ___   _   _    ___  __  __ ___    _  __         _             ___                     _           
+ / __| /_\ | |  / _ \|  \/  | __|__| |/ /_ _ __ _| |_ ___ ___  / __|___ _ ___ _____ _ _| |_ ___ _ _ 
+ \__ \/ _ \| |_| (_) | |\/| | _|___| ' <| '_/ _` |  _/ _ (_-< | (__/ _ \ ' \ V / -_) '_|  _/ -_) '_|
+ |___/_/ \_\____\___/|_|  |_|___|  |_|\_\_| \__,_|\__\___/__/  \___\___/_||_\_/\___|_|  \__\___|_|  
+    ''')
+
+
 def GetEntityType(SalomeIdentifier):
     pre_string = "Unknown"
     if (SalomeIdentifier in SALOME_IDENTIFIERS):
@@ -174,9 +250,6 @@ def GetEntityType(SalomeIdentifier):
 def GetNumberOfNodes(String):
     return int(String[1:3])
 
-
-def GetDebugFlag():
-    return DEBUG
 
 def GetTreeItem(tree, event):
     return tree.identify('item', event.x, event.y)
@@ -208,17 +281,8 @@ class GeometricEntitySalome:
         serialized_entity = [self.salome_ID, self.salome_identifier, self.node_list]
         return serialized_entity
         
-
-
-#class Node: # Not used at the moment. So far the nodes from salome are used directly.
-# Using this one could write the nodes in a consecutive order in case not all the meshes are used
-#    def __init__(self, origin_ID, coord_x, coord_y, coord_z):
-#        self.origin_ID = origin_ID
-#        self.X = coord_x
-#        self.y = coord_y
-#        self.z = coord_z
         
-        
+    
 class GeometricalObject:
     def __init__(self, salome_entity, name):
         self.origin_entity = salome_entity
@@ -240,14 +304,17 @@ class GeometricalObject:
         return line
         
         
+    
 class Element(GeometricalObject):
     def __init__(self, salome_entity, name):
         super().__init__(salome_entity, name)
         
         
+        
 class Condition(GeometricalObject):
     def __init__(self, salome_entity, name):
         super().__init__(salome_entity, name)
+        
         
         
 class MainModelPart:
@@ -269,8 +336,10 @@ class MainModelPart:
         self.element_counter = 1
         self.condition_counter = 1
     
+    
     def GetMeshRead(self):
         return self.mesh_read
+    
     
     def GetSubModelPart(self, smp_name):
         if smp_name in self.sub_model_parts:
@@ -325,14 +394,14 @@ class MainModelPart:
                 element_name = item_values[0]
                 salome_identifier = int(item_values[1].split("_")[0])
                 
-                self.AddEntryToDict(dictionary, salome_identifier, "Element", element_name)
+                self._AddEntryToDict(dictionary, salome_identifier, "Element", element_name)
 
             if (tree.tag_has("Condition", child)):
                 item_values = tree.item(child,"values")
                 condition_name = item_values[0]
                 salome_identifier = int(item_values[1].split("_")[0])
                 
-                self.AddEntryToDict(dictionary, salome_identifier, "Condition", condition_name)
+                self._AddEntryToDict(dictionary, salome_identifier, "Condition", condition_name)
         
         return dictionary
 
@@ -402,7 +471,7 @@ class MainModelPart:
             self.conditions[condition_name].extend(smp_conditions[condition_name])
             
     
-    def AddEntryToDict(self, json_dict, salome_identifier, entity_type, entity_name):
+    def _AddEntryToDict(self, json_dict, salome_identifier, entity_type, entity_name):
         if salome_identifier not in json_dict:
             json_dict[salome_identifier] = {}
             
