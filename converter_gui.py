@@ -26,7 +26,7 @@ import numpy as np
 # TODO sort selection window by entities (nodes, elements, conditions)
 # TODO add geometrical information to the Kratos entities
 # TODO initial directories
-# TODO Updating the file tree should be called without arguments => get it directly from the ModelPart
+# TODO bind escape to closing the window (aka cancel)
 
 
 class BaseWindow(): # This is the base class for all window classes
@@ -388,8 +388,8 @@ class GUIObject(BaseWindow):
         else:
             serialized_model_part_dict = self.model_part.Serialize()
             with open(self.save_file_path, "w") as save_file:
-                # json.dump(serialized_model_part_dict, save_file)
-                json.dump(serialized_model_part_dict, save_file, sort_keys = True, indent = 4) # Do this only for debugging, file size is much larger!
+                json.dump(serialized_model_part_dict, save_file)
+                #json.dump(serialized_model_part_dict, save_file, sort_keys = True, indent = 4) # Do this only for debugging, file size is much larger!
             
             self.PlotCmdOutput("Saved the file", "green")
             utils.unsaved_changes_exist = False
@@ -413,7 +413,7 @@ class GUIObject(BaseWindow):
             if not input_save_file_path.endswith(utils.conv_scheme_file_ending):
                 input_save_file_path += utils.conv_scheme_file_ending
 
-            model_part_dict = self.model_part.AssembleJSONDict()
+            model_part_dict = self.model_part.AssembleMeshInfoDict()
             with open(input_save_file_path, "w") as save_file:
                 json.dump(model_part_dict, save_file, sort_keys = True, indent = 4)
             
@@ -423,7 +423,7 @@ class GUIObject(BaseWindow):
 
     def UpdateMeshTree(self, tree_items_dict=None):
         if not tree_items_dict:
-            tree_items_dict = self.model_part.AssembleJSONDict()
+            tree_items_dict = self.model_part.AssembleMeshInfoDict()
         self.tree.delete(*self.tree.get_children())
         if len(tree_items_dict) > 0:
             self.main_tree_item = self.tree.insert("", "end", text="Main Mesh", open=True)
@@ -438,7 +438,7 @@ class GUIObject(BaseWindow):
             mdpa_file_path = utils.GetFilePathSave("mdpa")
             if mdpa_file_path:
                 with open(mdpa_file_path,"w") as mdpa_file:
-                    writing_successful = self.model_part.WriteMesh(mdpa_file, True)
+                    writing_successful = self.model_part.WriteMesh(mdpa_file)
 
             if writing_successful:
                 self.PlotCmdOutput("Mesh was written successfully!", "green")
@@ -471,64 +471,95 @@ class ReadMeshWindow(BaseWindow):
         
         self.file_parsed = False
         self.edited_mesh = False
-
-        tk.Label(self.window, text="Read Entities:").grid(row=2, column=0)
-        tk.Label(self.window, text="Entities to be written to MDPA:").grid(row=2, column=1)
+        self.old_smp_name = ""
         
-        self.tree_input = ttk.Treeview(self.window, show='tree', selectmode='none')
-        self.tree_input.grid(row=3, sticky=tk.W, column=0, padx=15, pady=(0,15))
+        ### Row 1 ###
+        # Button for reading the Mesh
+        tk.Button(self.window, text="Read Mesh File", width=20, command=self.ReadAndParseMeshFile).grid(
+                row=1, column=0, pady=15)
 
+        # CheckBox for selecting if a SubModelPart should be written or not
+        self.write_smp_var = tk.IntVar()
+        self.write_smp_var.set(1) # Choose to write SubModelPart to file by default
+        tk.Checkbutton(self.window, text="Write SubModelPart", variable=self.write_smp_var).grid(
+                row=1, column=1, sticky=tk.W)
+        
+        ### Row 2 ###
+        # Label for name of SubModelPart
+        tk.Label(self.window, text="Name SubModelPart",justify = tk.LEFT, width=20).grid(
+                row=2, column=0, sticky=tk.W+tk.E)
+        
+        # Entry field for name of SubModelPart
+        self.smp_name_var = tk.StringVar()
+        tk.Entry(self.window, textvariable=self.smp_name_var).grid(
+                row=2, column=1, sticky=tk.W+tk.E)
+
+        ### Row 3 ###
+        # Label for file-path of SubModelPart
+        tk.Label(self.window, text="Path to SubModelPart",
+            justify = tk.LEFT, width=20).grid(row=3, column=0, sticky=tk.W+tk.E)
+        # Label for file-path of SubModelPart
+        self.smp_path_var = tk.StringVar()
+        tk.Label(self.window, textvariable=self.smp_path_var, anchor=tk.W, relief=tk.GROOVE).grid(row=3, column=1, sticky=tk.W+tk.E)
+        
+        ### Row 4 ###
+        # Separator
+        ttk.Separator(self.window, orient=tk.HORIZONTAL).grid(
+                row=4, pady=15, columnspan=2, sticky=tk.W+tk.E)
+        
+        ### Row 5 ###
+        # Labels for tree
+        tk.Label(self.window, text="Read Entities:").grid(row=5, column=0)
+        tk.Label(self.window, text="Entities to be written to MDPA:").grid(row=5, column=1)
+        
+        ### Row 6 ###
+        # Tree with read entities
+        self.tree_input = ttk.Treeview(self.window, show='tree', selectmode='none')
+        self.tree_input.grid(row=6, sticky=tk.W, column=0, padx=15, pady=(0,15))
+        self.tree_input.tag_bind("clickable", "<Double-1>", lambda event : self.OpenChildWindow(self.CreateEntrySelectionWindow, event))
+
+        # Tree with entities that will be cretated
         self.tree_output = ttk.Treeview(self.window)
         self.tree_output["columns"]=("col_entity_name", "col_origin_entity")
         self.tree_output.heading("#0", text="Entity Type")
         self.tree_output.heading("col_entity_name", text="Entity Name")
         self.tree_output.heading("col_origin_entity", text="Origin Entity")
-        self.tree_output.grid(row=3, sticky=tk.E, column=1, padx=15, pady=(0,15))
+        self.tree_output.grid(row=6, sticky=tk.E, column=1, padx=15, pady=(0,15))
         self.tree_output.tag_configure("Element", foreground="blue")
         self.tree_output.tag_configure("Condition", foreground="red")
-
-        # self.tree_input.bind("<Double-1>", self.CreateEntrySelectionWindow)
-        self.tree_input.tag_bind("clickable", "<Double-1>", lambda event : self.OpenChildWindow(self.CreateEntrySelectionWindow, event))
-
-        # self.CreateTreeContextMenu()
-        # self.tree_output.tag_bind("modifyable", "<Button-3>", self.ShowTreeContextMenu) # show the context menu when rightclicked
         self.tree_output.tag_bind("modifyable", "<Double-1>", lambda event : self.EditTreeOutputItem(
                                                                               utils.GetTreeItem(self.tree_output, event)))
-        # self.tree_output.tag_bind("modifyable", "<Return>", self.EditSelectedTreeItem)
         self.tree_output.tag_bind("modifyable", "<Delete>", self.DeleteTreeOutputItem)
 
-
+        # self.tree_input.bind("<Double-1>", self.CreateEntrySelectionWindow)
+        # self.tree_output.tag_bind("modifyable", "<Return>", self.EditSelectedTreeItem)
+        # self.CreateTreeContextMenu()
+        # self.tree_output.tag_bind("modifyable", "<Button-3>", self.ShowTreeContextMenu) # show the context menu when rightclicked
         #self.tree_input.tag_bind("Node", "<Double-1>", lambda event : self.CreateEntrySelectionWindowNode(event))
         #self.FillTree(tree, nodes, geom_entities)
-        button_text = "Read Mesh File"
-        button = tk.Button(self.window, text=button_text, width=20, command=self.ReadAndParseMeshFile)
-        button.grid(row=0, column=0, pady=15)
-
-        self.write_smp_var = tk.IntVar()
-        self.write_smp_var.set(1) # Choose to write SubModelPart to file by default
-        c = tk.Checkbutton(self.window, text="Write SubModelPart", variable=self.write_smp_var)
-        c.grid(row=0, column=1, sticky=tk.W)
-
-
-        tk.Label(self.window, text="Name SubModelPart",
-            justify = tk.LEFT, relief=tk.RAISED,
-            pady = 20).grid(row=1, column=0, sticky=tk.W+tk.E)
-        self.smp_name_var = tk.StringVar()
-        entry_smp_name=tk.Entry(self.window, textvariable=self.smp_name_var)
-        entry_smp_name.grid(row=1, column=1, sticky=tk.W+tk.E)
-
-        button = tk.Button(self.window, text="Cancel", width=20, command=self.CloseWindow)
-        button.grid(row=4, column=0, pady=(0,15))
-
-        button = tk.Button(self.window, text="Save and Close", width=20, command=self.SaveAndCloseWindow)
-        button.grid(row=4, column=1, pady=(0,15))
         
+        ### Row 7 ###
+        # Buttons for Canceling and Saving
+        tk.Button(self.window, text="Cancel", width=20, command=self.CloseWindow).grid(
+                row=7, column=0, pady=(0,15))
+
+        tk.Button(self.window, text="Save and Close", width=20, command=self.SaveAndCloseWindow).grid(
+                row=7, column=1, pady=(0,15))
+        
+        # In case an existing mesh is edited:
         if smp_name: # This means that an existing mesh is edited
             smp = self.master.GetModelPart().GetSubModelPart(smp_name)
+            smp_info_dict = smp.GetInfoDict()
             self.FillInputTree(smp.GetGeomEntites())
-            self.FillOutputTree(self.master.GetModelPart().GetSubModelPart(smp_name).GetDictionary())
+            self.FillOutputTree(smp.GetMeshInfoDict())
             self.edited_mesh = True
-            self.current_smp_name = smp_name
+            self.old_smp_name = smp_name
+            self.smp_name_var.set(smp_name)
+            self.smp_path_var.set(smp_info_dict["smp_file_path"])
+            self.write_smp_var.set(smp_info_dict["write_smp"])
+            
+            self.file_name = smp_info_dict["smp_file_name"]
+            self.file_path = smp_info_dict["smp_file_path"]
 
         
     def ReadAndParseMeshFile(self):
@@ -539,16 +570,21 @@ class ReadMeshWindow(BaseWindow):
             self.tree_input.delete(*self.tree_input.get_children())
             self.tree_output.delete(*self.tree_output.get_children())
 
-            self.file_name = utils.GetFileName(file_path)
-
+            file_name = utils.GetFileName(file_path)
             
-            if self.master.GetModelPart().FileExists(self.file_name):
+            if self.master.GetModelPart().FileExists(file_name):
                 self.PlotCmdOutput("File was already read!", "red")
             else:
                 self.nodes_read, self.geom_entities_read = parser.ReadAndParseFile(file_path)
                 self.FillInputTree(self.geom_entities_read)
                 # TODO check if num_node > 0!
                 self.file_parsed = True
+                
+                self.file_name = file_name
+                self.file_path = file_path
+                
+                self.smp_name_var.set(file_name)
+                self.smp_path_var.set(file_path)
             
 
     def CreateDictionaryFromParsedEntities(self, geom_entities):
@@ -575,6 +611,7 @@ class ReadMeshWindow(BaseWindow):
             for key in sorted_keys:
                 label = utils.GetEntityType(key)
                 self.tree_input.insert("", "end", text=label, tags="clickable")
+            
             
     def FillOutputTree(self, smp_dict):
         for salome_ID in sorted(smp_dict.keys()):
@@ -641,12 +678,6 @@ class ReadMeshWindow(BaseWindow):
             self.PlotCmdOutput("This entry exists already!", "red")
         else:
             self.InsertTreeOutputItem(entity_type, item_values, item_iid)
-#            if item_idd is None: # Inserting a new item
-#                item_idd = self.tree_output.insert("", "end")
-#                
-#            self.tree_output.item(item_idd, text=entity_type, values=item_values, tag=(entity_type, "modifyable"))
-
-        # self.SortTreeOutputByEntityType()
 
 
     def InsertTreeOutputItem(self, entity_type, item_values, item_iid=None):
@@ -675,15 +706,6 @@ class ReadMeshWindow(BaseWindow):
     #     self.tree_context_menu.add_command(label="Edit", command=self.EditSelectedTreeItem)
     #     self.tree_context_menu.add_command(label="Delete", command=self.DeleteTreeItems)
 
-    # def SortTreeOutputByEntityType(self):
-    #     elements = []
-    #     conditions = []
-    #     for tree_item in self.tree_output.get_children():
-            
-    #         if self.tree_output.item(tree_item,"text") == entity_type:
-    #             if self.tree_output.item(tree_item,"values") == item_values:
-    #                 identical_entry_found = True
-
 
     def ValidateInput(self):
         valid_input = True
@@ -692,33 +714,33 @@ class ReadMeshWindow(BaseWindow):
             valid_input = False
             self.PlotCmdOutput("Please enter a SubModelPart Name", "red")
         else:
-            if not isinstance(self.entity_name.get(), str):
+            if not isinstance(self.smp_name_var.get(), str):
                 valid_input = False
                 self.PlotCmdOutput("SubModelPart name is not valid", "red")
+            if self.old_smp_name != self.smp_name_var.get():
+                if self.master.GetModelPart().FileExists(self.smp_name_var.get()):
+                    self.PlotCmdOutput("SubModelPart name exists already!", "red")
+                    valid_input = False
 
         return valid_input
 
     def SaveAndCloseWindow(self):
-        # TODO process "self.write_smp_var"
-        #AddMesh(self, smp_info_dict, tree_selection, nodes_read, geom_entities_read):
-
         if self.ValidateInput():
             smp_info_dict = {}
             smp_info_dict["smp_name"] = self.smp_name_var.get()
-            smp_info_dict["file_name"] = "sss"
-            smp_info_dict["file_path"] = "ddd"
-
-
+            smp_info_dict["smp_file_name"] = self.file_name
+            smp_info_dict["smp_file_path"] = self.file_path
+            smp_info_dict["write_smp"] = self.write_smp_var.get()
 
             if self.file_parsed and self.edited_mesh: # A mesh was edited but then re-read (overwritten)
-                self.master.GetModelPart().RemoveSubmodelPart(self.current_smp_name)
-                self.master.GetModelPart().AddMesh(self.tree_output, self.nodes_read, self.geom_entities_read, self.file_name)
+                self.master.GetModelPart().RemoveSubmodelPart(self.old_smp_name)
+                self.master.GetModelPart().AddMesh(smp_info_dict, self.tree_output, self.nodes_read, self.geom_entities_read)
 
             if self.file_parsed and not self.edited_mesh: # A mesh was read
-                self.master.GetModelPart().AddMesh(self.tree_output, self.nodes_read, self.geom_entities_read, self.file_name)
+                self.master.GetModelPart().AddMesh(smp_info_dict, self.tree_output, self.nodes_read, self.geom_entities_read)
         
             elif not self.file_parsed and self.edited_mesh: # A mesh was edited
-                self.master.GetModelPart().UpdateMesh(self.current_smp_name, self.tree_output)
+                self.master.GetModelPart().UpdateMesh(self.old_smp_name, smp_info_dict, self.tree_output)
         
             self.master.UpdateMeshTree()
 

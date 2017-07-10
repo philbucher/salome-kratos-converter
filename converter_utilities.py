@@ -283,6 +283,7 @@ class MainModelPart:
     
     def FileExists(self, file_name):
         # TODO check against path, name, or both? Or even allow it with a warning?
+        # TODO modify such that it checks against the file_name and not the smp_name
         file_exists = False
         
         if file_name in self.sub_model_parts.keys():
@@ -291,26 +292,28 @@ class MainModelPart:
         return file_exists
     
     
-    def AssembleJSONDict(self):
+    def AssembleMeshInfoDict(self):
         mp_dict = {}
         
         for smp_name in self.sub_model_parts.keys():
-            mp_dict[smp_name] = self.sub_model_parts[smp_name].GetDictionary()
+            mp_dict[smp_name] = self.sub_model_parts[smp_name].GetMeshInfoDict()
         
         return mp_dict
         
         
     def AddMesh(self, smp_info_dict, tree_selection, nodes_read, geom_entities_read):
         mesh_dict = self._GetDictFromTree(tree_selection)
-
-        self.sub_model_parts[file_name] = MeshSubmodelPart()
-        self.sub_model_parts[file_name].FillWithEntities(smp_info_dict, mesh_dict, nodes_read, geom_entities_read)
+        smp_name = smp_info_dict["smp_name"]
+        self.sub_model_parts[smp_name] = MeshSubmodelPart()
+        self.sub_model_parts[smp_name].FillWithEntities(smp_info_dict, mesh_dict, nodes_read, geom_entities_read)
         
         self.mesh_read = True
 
-    def UpdateMesh(self, smp_name, tree):
-        # TODO update to smp_info_dict
-        self.sub_model_parts[smp_name].Update(self._GetDictFromTree(tree))
+    def UpdateMesh(self, old_smp_name, smp_info_dict, tree):
+        new_smp_name = smp_info_dict["smp_name"]
+        self.sub_model_parts[new_smp_name] = self.sub_model_parts.pop(old_smp_name) # Update the key
+        
+        self.sub_model_parts[new_smp_name].Update(smp_info_dict, self._GetDictFromTree(tree))
 
 
     def _GetDictFromTree(self, tree):
@@ -422,7 +425,7 @@ class MainModelPart:
     def _NumberOfConditions(self):
         return sum([len(val) for val in self.conditions.values()])
     
-    def WriteMesh(self, file, write_submodelparts):
+    def WriteMesh(self, file):
         self._Assemble() # TODO only do this if sth has changed
         # Write Header
         self._WriteMeshInfo(file)
@@ -439,10 +442,9 @@ class MainModelPart:
         self._WriteConditions(file)
         
         # Write SubModelParts
-        if write_submodelparts:
-            for smp_name in sorted(self.sub_model_parts.keys()):
-                smp = self.sub_model_parts[smp_name]
-                smp.WriteMesh(file)
+        for smp_name in sorted(self.sub_model_parts.keys()):
+            smp = self.sub_model_parts[smp_name]
+            smp.WriteMesh(file)
                 
         return True
             
@@ -520,20 +522,21 @@ class MeshSubmodelPart:
         self.mesh_dict = mesh_dict
         self.nodes_read = nodes_read
         self.geom_entities_read = geom_entities_read
-        self.dict_used_for_assembly = None
+        self.smp_info_dict_used_for_assembly = None
+        self.mesh_dict_used_for_assembly = None
         self.Initialize()
 
 
     def Serialize(self):
         serialized_smp = {}
-        logging.info("Serializing " + self.file_name)
+        logging.info("Serializing " + self.smp_info_dict["smp_name"])
 
         serialized_smp["submodelpart_information"] = self.smp_info_dict
         serialized_smp["mesh_information"] = self.mesh_dict
         serialized_smp["nodes_read"] = self._SerializeNodesRead()
         serialized_smp["geom_entities_read"] = self._SerializeGeomEntitiesRead()
 
-        return {self.file_name : serialized_smp}
+        return {self.smp_info_dict["smp_name"] : serialized_smp}
 
 
     def _SerializeNodesRead(self):
@@ -601,12 +604,11 @@ class MeshSubmodelPart:
         return deserialized_geom_entities_read
 
 
-    def Update(self, dictionary):
-        self.dictionary = dictionary
+    def Update(self, smp_info_dict, mesh_dict):
+        self.smp_info_dict = smp_info_dict
+        self.mesh_dict = mesh_dict
         
         
-    def GetName(self):
-        return self.file_name
     
     def GetGeomEntites(self):
         return self.geom_entities_read
@@ -615,9 +617,11 @@ class MeshSubmodelPart:
     def Assemble(self):
         # This function creates the Kratos entities from the read entities  
         # that are defined in it's dictionary
-        if self.dict_used_for_assembly != self.dictionary:
+        if (self.mesh_dict_used_for_assembly != self.mesh_dict and
+            self.smp_info_dict_used_for_assembly != self.smp_info_dict):
         
-            self.dict_used_for_assembly = self.dictionary
+            self.smp_info_dict_used_for_assembly = self.smp_info_dict
+            self.mesh_dict_used_for_assembly = self.mesh_dict
             
             self._AddNodes()
             self._AddElements()
@@ -631,11 +635,11 @@ class MeshSubmodelPart:
     def _AddElements(self):
         self.elements.clear()
 
-        for salome_identifier in self.dictionary.keys():
-            geom_entities = self.geom_entities_read[salome_identifier] #int conversion necessary bcs self.dictionary contains strings for some reason ... TODO
+        for salome_identifier in self.mesh_dict.keys():
+            geom_entities = self.geom_entities_read[salome_identifier]
             
-            if "Element" in self.dictionary[salome_identifier]:
-                element_list = self.dictionary[salome_identifier]["Element"]
+            if "Element" in self.mesh_dict[salome_identifier]:
+                element_list = self.mesh_dict[salome_identifier]["Element"]
                 for element_name in sorted(element_list):
                     if element_name not in self.elements:
                         self.elements[element_name] = []
@@ -647,11 +651,11 @@ class MeshSubmodelPart:
     def _AddConditions(self):
         self.conditions.clear()
 
-        for salome_identifier in self.dictionary.keys():
+        for salome_identifier in self.mesh_dict.keys():
             geom_entities = self.geom_entities_read[salome_identifier]
             
-            if "Condition" in self.dictionary[salome_identifier]:
-                condition_list = self.dictionary[salome_identifier]["Condition"]
+            if "Condition" in self.mesh_dict[salome_identifier]:
+                condition_list = self.mesh_dict[salome_identifier]["Condition"]
                 for condition_name in sorted(condition_list):
                     if condition_name not in self.conditions:
                         self.conditions[condition_name] = []
@@ -662,8 +666,11 @@ class MeshSubmodelPart:
     def GetMesh(self):
         return self.nodes, self.elements, self.conditions
     
-    def GetDictionary(self):
-        return self.dictionary
+    def GetInfoDict(self):
+        return self.smp_info_dict
+    
+    def GetMeshInfoDict(self):
+        return self.mesh_dict
 
     def _NumberOfNodes(self):
         return len(self.nodes)
@@ -677,8 +684,9 @@ class MeshSubmodelPart:
     
     def WriteMesh(self, file):
         # Write Header
-        if self.write_smp:
-            file.write("Begin SubModelPart " + self.file_name + "\n")
+        if self.smp_info_dict["write_smp"]:
+            smp_name = self.smp_info_dict["smp_name"]
+            file.write("Begin SubModelPart " + smp_name + "\n")
             
             # Write Nodes
             self._WriteNodes(file)
@@ -689,7 +697,7 @@ class MeshSubmodelPart:
             # Write Conditions
             self._WriteConditions(file)
             
-            file.write("End SubModelPart // " + self.file_name + "\n\n")
+            file.write("End SubModelPart // " + smp_name + "\n\n")
         
             
     def _WriteNodes(self, file):
@@ -720,7 +728,8 @@ class MeshSubmodelPart:
         file.write("\tEnd SubModelPartConditions \n\n")
 
     def WriteMeshInfo(self, file):
-        file.write("// SubModelPart " + self.file_name + "\n")
-        file.write("//   Number of Nodes: " + str(self._NumberOfNodes()) + "\n")
-        file.write("//   Number of Elements: " + str(self._NumberOfElements()) + "\n")
-        file.write("//   Number of Conditions: " + str(self._NumberOfConditions()) + "\n")
+        if self.smp_info_dict["write_smp"]: 
+            file.write("// SubModelPart " + self.smp_info_dict["smp_name"] + "\n")
+            file.write("//   Number of Nodes: " + str(self._NumberOfNodes()) + "\n")
+            file.write("//   Number of Elements: " + str(self._NumberOfElements()) + "\n")
+            file.write("//   Number of Conditions: " + str(self._NumberOfConditions()) + "\n")
