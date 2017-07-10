@@ -472,18 +472,18 @@ class ReadMeshWindow(BaseWindow):
         self.file_parsed = False
         self.edited_mesh = False
 
-        tk.Label(self.window, text="Read Entities:").grid(row=1, column=0)
-        tk.Label(self.window, text="Entities to be written to MDPA:").grid(row=1, column=1)
+        tk.Label(self.window, text="Read Entities:").grid(row=2, column=0)
+        tk.Label(self.window, text="Entities to be written to MDPA:").grid(row=2, column=1)
         
         self.tree_input = ttk.Treeview(self.window, show='tree', selectmode='none')
-        self.tree_input.grid(row=2, sticky=tk.W, column=0, padx=15, pady=(0,15))
+        self.tree_input.grid(row=3, sticky=tk.W, column=0, padx=15, pady=(0,15))
 
         self.tree_output = ttk.Treeview(self.window)
         self.tree_output["columns"]=("col_entity_name", "col_origin_entity")
         self.tree_output.heading("#0", text="Entity Type")
         self.tree_output.heading("col_entity_name", text="Entity Name")
         self.tree_output.heading("col_origin_entity", text="Origin Entity")
-        self.tree_output.grid(row=2, sticky=tk.E, column=1, padx=15, pady=(0,15))
+        self.tree_output.grid(row=3, sticky=tk.E, column=1, padx=15, pady=(0,15))
         self.tree_output.tag_configure("Element", foreground="blue")
         self.tree_output.tag_configure("Condition", foreground="red")
 
@@ -509,18 +509,26 @@ class ReadMeshWindow(BaseWindow):
         c = tk.Checkbutton(self.window, text="Write SubModelPart", variable=self.write_smp_var)
         c.grid(row=0, column=1, sticky=tk.W)
 
+
+        tk.Label(self.window, text="Name SubModelPart",
+            justify = tk.LEFT, relief=tk.RAISED,
+            pady = 20).grid(row=1, column=0, sticky=tk.W+tk.E)
+        self.smp_name_var = tk.StringVar()
+        entry_smp_name=tk.Entry(self.window, textvariable=self.smp_name_var)
+        entry_smp_name.grid(row=1, column=1, sticky=tk.W+tk.E)
+
         button = tk.Button(self.window, text="Cancel", width=20, command=self.CloseWindow)
-        button.grid(row=3, column=0, pady=(0,15))
+        button.grid(row=4, column=0, pady=(0,15))
 
         button = tk.Button(self.window, text="Save and Close", width=20, command=self.SaveAndCloseWindow)
-        button.grid(row=3, column=1, pady=(0,15))
+        button.grid(row=4, column=1, pady=(0,15))
         
         if smp_name: # This means that an existing mesh is edited
             smp = self.master.GetModelPart().GetSubModelPart(smp_name)
             self.FillInputTree(smp.GetGeomEntites())
             self.FillOutputTree(self.master.GetModelPart().GetSubModelPart(smp_name).GetDictionary())
             self.edited_mesh = True
-            self.smp_name = smp_name
+            self.current_smp_name = smp_name
 
         
     def ReadAndParseMeshFile(self):
@@ -667,30 +675,54 @@ class ReadMeshWindow(BaseWindow):
     #     self.tree_context_menu.add_command(label="Edit", command=self.EditSelectedTreeItem)
     #     self.tree_context_menu.add_command(label="Delete", command=self.DeleteTreeItems)
 
-    def SortTreeOutputByEntityType(self):
-        elements = []
-        conditions = []
-        for tree_item in self.tree_output.get_children():
+    # def SortTreeOutputByEntityType(self):
+    #     elements = []
+    #     conditions = []
+    #     for tree_item in self.tree_output.get_children():
             
-            if self.tree_output.item(tree_item,"text") == entity_type:
-                if self.tree_output.item(tree_item,"values") == item_values:
-                    identical_entry_found = True
+    #         if self.tree_output.item(tree_item,"text") == entity_type:
+    #             if self.tree_output.item(tree_item,"values") == item_values:
+    #                 identical_entry_found = True
+
+
+    def ValidateInput(self):
+        valid_input = True
+
+        if not self.smp_name_var.get():
+            valid_input = False
+            self.PlotCmdOutput("Please enter a SubModelPart Name", "red")
+        else:
+            if not isinstance(self.entity_name.get(), str):
+                valid_input = False
+                self.PlotCmdOutput("SubModelPart name is not valid", "red")
+
+        return valid_input
 
     def SaveAndCloseWindow(self):
         # TODO process "self.write_smp_var"
-        if self.file_parsed and self.edited_mesh: # A mesh was edited but then re-read (overwritten)
-            self.master.GetModelPart().RemoveSubmodelPart(self.smp_name)
-            self.master.GetModelPart().AddMesh(self.tree_output, self.nodes_read, self.geom_entities_read, self.file_name)
+        #AddMesh(self, smp_info_dict, tree_selection, nodes_read, geom_entities_read):
 
-        if self.file_parsed and not self.edited_mesh: # A mesh was read
-            self.master.GetModelPart().AddMesh(self.tree_output, self.nodes_read, self.geom_entities_read, self.file_name)
-       
-        elif not self.file_parsed and self.edited_mesh: # A mesh was edited
-            self.master.GetModelPart().UpdateMesh(self.smp_name, self.tree_output)
-       
-        self.master.UpdateMeshTree()
+        if self.ValidateInput():
+            smp_info_dict = {}
+            smp_info_dict["smp_name"] = self.smp_name_var.get()
+            smp_info_dict["file_name"] = "sss"
+            smp_info_dict["file_path"] = "ddd"
 
-        self.CloseWindow()
+
+
+            if self.file_parsed and self.edited_mesh: # A mesh was edited but then re-read (overwritten)
+                self.master.GetModelPart().RemoveSubmodelPart(self.current_smp_name)
+                self.master.GetModelPart().AddMesh(self.tree_output, self.nodes_read, self.geom_entities_read, self.file_name)
+
+            if self.file_parsed and not self.edited_mesh: # A mesh was read
+                self.master.GetModelPart().AddMesh(self.tree_output, self.nodes_read, self.geom_entities_read, self.file_name)
+        
+            elif not self.file_parsed and self.edited_mesh: # A mesh was edited
+                self.master.GetModelPart().UpdateMesh(self.current_smp_name, self.tree_output)
+        
+            self.master.UpdateMeshTree()
+
+            self.CloseWindow()
     
 
 

@@ -300,15 +300,16 @@ class MainModelPart:
         return mp_dict
         
         
-    def AddMesh(self, tree_selection, nodes_read, geom_entities_read, file_name):
-        smp_dict = self._GetDictFromTree(tree_selection)
+    def AddMesh(self, smp_info_dict, tree_selection, nodes_read, geom_entities_read):
+        mesh_dict = self._GetDictFromTree(tree_selection)
 
         self.sub_model_parts[file_name] = MeshSubmodelPart()
-        self.sub_model_parts[file_name].FillWithEntities(file_name, smp_dict, nodes_read, geom_entities_read)
+        self.sub_model_parts[file_name].FillWithEntities(smp_info_dict, mesh_dict, nodes_read, geom_entities_read)
         
         self.mesh_read = True
 
     def UpdateMesh(self, smp_name, tree):
+        # TODO update to smp_info_dict
         self.sub_model_parts[smp_name].Update(self._GetDictFromTree(tree))
 
 
@@ -488,7 +489,7 @@ class MainModelPart:
             
             file.write("End Conditions // " + name + "\n\n")
     
-    
+
     def _WriteMeshInfo(self, file):
         localtime = time.asctime( time.localtime(time.time()) )
         file.write("// File created on " + localtime + " with SALOME-Kratos Converter\n")
@@ -514,10 +515,9 @@ class MeshSubmodelPart:
         self.conditions = {}
 
 
-    def FillWithEntities(self, file_name, dictionary, nodes_read, geom_entities_read, write_smp=True):
-        self.file_name = file_name
-        self.write_smp = write_smp
-        self.dictionary = dictionary
+    def FillWithEntities(self, smp_info_dict, mesh_dict, nodes_read, geom_entities_read):
+        self.smp_info_dict = smp_info_dict
+        self.mesh_dict = mesh_dict
         self.nodes_read = nodes_read
         self.geom_entities_read = geom_entities_read
         self.dict_used_for_assembly = None
@@ -528,7 +528,8 @@ class MeshSubmodelPart:
         serialized_smp = {}
         logging.info("Serializing " + self.file_name)
 
-        serialized_smp["mesh_information"] = self.dictionary
+        serialized_smp["submodelpart_information"] = self.smp_info_dict
+        serialized_smp["mesh_information"] = self.mesh_dict
         serialized_smp["nodes_read"] = self._SerializeNodesRead()
         serialized_smp["geom_entities_read"] = self._SerializeGeomEntitiesRead()
 
@@ -552,7 +553,7 @@ class MeshSubmodelPart:
 
 
     def Deserialize(self, smp_name, serialized_smp):
-        dictionary = self._DeserializeDictionary(serialized_smp)
+        smp_info_dict, mesh_dict = self._DeserializeDictionary(serialized_smp)
 
         nodes_read = {}
         geom_entities_read = {}
@@ -561,17 +562,20 @@ class MeshSubmodelPart:
             if "geom_entities_read" in serialized_smp: # Geometric Entities can only exist if there are nodes!
                 geom_entities_read = self._DeserializeGeomEntitiesRead(serialized_smp["geom_entities_read"])
 
-        self.FillWithEntities(smp_name, dictionary, nodes_read, geom_entities_read)
+        self.FillWithEntities(smp_info_dict, mesh_dict, nodes_read, geom_entities_read)
 
         logging.info("Deserialized " + smp_name)
 
 
     def _DeserializeDictionary(self, serialized_smp):
         # concert the keys to strings (has to be done bcs json converts ints to string)
-        if not "mesh_information" in serialized_smp:
-            raise Exception("\"mesh_information\" is not in serialized SubModelPart")
+        if not "submodelpart_information" in serialized_smp:
+            raise Exception("\"submodelpart_information\" is not in serialized SubModelPart!")
 
-        return DictKeyToInt(serialized_smp["mesh_information"])
+        if not "mesh_information" in serialized_smp:
+            raise Exception("\"mesh_information\" is not in serialized SubModelPart!")
+
+        return serialized_smp["submodelpart_information"], DictKeyToInt(serialized_smp["mesh_information"])
 
     
     def _DeserializeNodesRead(self, serialized_nodes_read):
