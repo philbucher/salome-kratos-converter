@@ -255,29 +255,29 @@ class GUIObject(BaseWindow):
             self.PlotCmdOutput("Please read Main Mesh first", "red")
 
 
-    def EditDblClickedTreeItem(self, event):
-        item = self.tree.identify('item',event.x,event.y)
-        print("you clicked on", self.tree.item(item,"text"))
-        print(self.tree.item(item,"values"))
-        print(len(self.tree.item(item,"values")))
-        print(self.tree.item(item,"values")[2])
-        uuu = self.tree.item(item,"values")[2]
-        if isinstance(uuu, dict):
-            print("true")
-        else:
-            print("false")
-        json_acceptable_string = uuu.replace("'", "\"")
-        print(json_acceptable_string)
-        #print(uuu["ttt"])
-        uuu2 = json.loads(json_acceptable_string)
-        print("dict", uuu2)
-        if isinstance(uuu2, dict):
-            print("true")
-        else:
-            print("false")
-        self.CreateEditWindow(item)
-        print(uuu2["ttt"])
-        print(uuu2["Element"])
+    # def EditDblClickedTreeItem(self, event):
+    #     item = self.tree.identify('item',event.x,event.y)
+    #     print("you clicked on", self.tree.item(item,"text"))
+    #     print(self.tree.item(item,"values"))
+    #     print(len(self.tree.item(item,"values")))
+    #     print(self.tree.item(item,"values")[2])
+    #     uuu = self.tree.item(item,"values")[2]
+    #     if isinstance(uuu, dict):
+    #         print("true")
+    #     else:
+    #         print("false")
+    #     json_acceptable_string = uuu.replace("'", "\"")
+    #     print(json_acceptable_string)
+    #     #print(uuu["ttt"])
+    #     uuu2 = json.loads(json_acceptable_string)
+    #     print("dict", uuu2)
+    #     if isinstance(uuu2, dict):
+    #         print("true")
+    #     else:
+    #         print("false")
+    #     self.CreateEditWindow(item)
+    #     print(uuu2["ttt"])
+    #     print(uuu2["Element"])
 
        
     def EditTreeItem(self, item):
@@ -287,7 +287,6 @@ class GUIObject(BaseWindow):
     def CreateReadMainMeshWindowEditItem(self, item):
         # item = self.tree_output.identify('item', event.x, event.y)
         smp_name = self.tree.item(item,"text")
-        print("pass")
         return ReadMeshWindow(self, smp_name) #Is only called if Item has tag "modifyable"
     
 
@@ -369,7 +368,7 @@ class GUIObject(BaseWindow):
 
             self.model_part.Deserialize(serialized_model_part_dict)
 
-            self.UpdateMeshTree(self.model_part.AssembleJSONDict())
+            self.UpdateMeshTree()
 
 
     def _SaveConverterProject(self, save_as):
@@ -389,8 +388,8 @@ class GUIObject(BaseWindow):
         else:
             serialized_model_part_dict = self.model_part.Serialize()
             with open(self.save_file_path, "w") as save_file:
-                json.dump(serialized_model_part_dict, save_file)
-                # json.dump(serialized_model_part_dict, save_file, sort_keys = True, indent = 4) # Do this only for debugging, file size is much larger!
+                # json.dump(serialized_model_part_dict, save_file)
+                json.dump(serialized_model_part_dict, save_file, sort_keys = True, indent = 4) # Do this only for debugging, file size is much larger!
             
             self.PlotCmdOutput("Saved the file", "green")
             utils.unsaved_changes_exist = False
@@ -422,7 +421,9 @@ class GUIObject(BaseWindow):
             utils.unsaved_changes_exist = False
 
 
-    def UpdateMeshTree(self, tree_items_dict):
+    def UpdateMeshTree(self, tree_items_dict=None):
+        if not tree_items_dict:
+            tree_items_dict = self.model_part.AssembleJSONDict()
         self.tree.delete(*self.tree.get_children())
         if len(tree_items_dict) > 0:
             self.main_tree_item = self.tree.insert("", "end", text="Main Mesh", open=True)
@@ -502,6 +503,11 @@ class ReadMeshWindow(BaseWindow):
         button_text = "Read Mesh File"
         button = tk.Button(self.window, text=button_text, width=20, command=self.ReadAndParseMeshFile)
         button.grid(row=0, column=0, pady=15)
+
+        self.write_smp_var = tk.IntVar()
+        self.write_smp_var.set(1) # Choose to write SubModelPart to file by default
+        c = tk.Checkbutton(self.window, text="Write SubModelPart", variable=self.write_smp_var)
+        c.grid(row=0, column=1, sticky=tk.W)
 
         button = tk.Button(self.window, text="Cancel", width=20, command=self.CloseWindow)
         button.grid(row=3, column=0, pady=(0,15))
@@ -632,6 +638,8 @@ class ReadMeshWindow(BaseWindow):
 #                
 #            self.tree_output.item(item_idd, text=entity_type, values=item_values, tag=(entity_type, "modifyable"))
 
+        # self.SortTreeOutputByEntityType()
+
 
     def InsertTreeOutputItem(self, entity_type, item_values, item_iid=None):
         if item_iid is None: # Inserting a new item
@@ -659,7 +667,17 @@ class ReadMeshWindow(BaseWindow):
     #     self.tree_context_menu.add_command(label="Edit", command=self.EditSelectedTreeItem)
     #     self.tree_context_menu.add_command(label="Delete", command=self.DeleteTreeItems)
 
+    def SortTreeOutputByEntityType(self):
+        elements = []
+        conditions = []
+        for tree_item in self.tree_output.get_children():
+            
+            if self.tree_output.item(tree_item,"text") == entity_type:
+                if self.tree_output.item(tree_item,"values") == item_values:
+                    identical_entry_found = True
+
     def SaveAndCloseWindow(self):
+        # TODO process "self.write_smp_var"
         if self.file_parsed and self.edited_mesh: # A mesh was edited but then re-read (overwritten)
             self.master.GetModelPart().RemoveSubmodelPart(self.smp_name)
             self.master.GetModelPart().AddMesh(self.tree_output, self.nodes_read, self.geom_entities_read, self.file_name)
@@ -670,7 +688,7 @@ class ReadMeshWindow(BaseWindow):
         elif not self.file_parsed and self.edited_mesh: # A mesh was edited
             self.master.GetModelPart().UpdateMesh(self.smp_name, self.tree_output)
        
-        self.master.UpdateMeshTree(self.master.GetModelPart().AssembleJSONDict())
+        self.master.UpdateMeshTree()
 
         self.CloseWindow()
     

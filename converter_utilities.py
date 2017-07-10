@@ -205,7 +205,7 @@ class GeometricEntitySalome:
         return self.node_list
 
     def Serialize(self):
-        serialized_entity = {self.salome_ID : [self.salome_identifier, self.node_list]}
+        serialized_entity = [self.salome_ID, self.salome_identifier, self.node_list]
         return serialized_entity
         
 
@@ -448,7 +448,7 @@ class MainModelPart:
             
     def _WriteNodes(self, file):
         file.write("Begin Nodes\n")
-        print(sorted(list(self.nodes.keys())))
+
         for ID in sorted(list(self.nodes.keys())):
             coords = self.nodes[ID]
             
@@ -488,6 +488,7 @@ class MainModelPart:
             
             file.write("End Conditions // " + name + "\n\n")
     
+    
     def _WriteMeshInfo(self, file):
         localtime = time.asctime( time.localtime(time.time()) )
         file.write("// File created on " + localtime + " with SALOME-Kratos Converter\n")
@@ -503,7 +504,7 @@ class MainModelPart:
 
 
 class MeshSubmodelPart:
-    def __init__(self):
+    def __init__(self): # TODO is this needed?
         pass
         
         
@@ -512,13 +513,16 @@ class MeshSubmodelPart:
         self.elements = {}
         self.conditions = {}
 
-    def FillWithEntities(self, file_name, dictionary, nodes_read, geom_entities_read):
+
+    def FillWithEntities(self, file_name, dictionary, nodes_read, geom_entities_read, write_smp=True):
         self.file_name = file_name
+        self.write_smp = write_smp
         self.dictionary = dictionary
         self.nodes_read = nodes_read
         self.geom_entities_read = geom_entities_read
         self.dict_used_for_assembly = None
         self.Initialize()
+
 
     def Serialize(self):
         serialized_smp = {}
@@ -538,11 +542,11 @@ class MeshSubmodelPart:
 
 
     def _SerializeGeomEntitiesRead(self):
-        serialized_geom_entities = {}
+        serialized_geom_entities = []
         
         for salome_ID in self.geom_entities_read:
             for entity in self.geom_entities_read[salome_ID]:
-                serialized_geom_entities.update(entity.Serialize())
+                serialized_geom_entities.append(entity.Serialize())
             
         return serialized_geom_entities
 
@@ -577,9 +581,11 @@ class MeshSubmodelPart:
     def _DeserializeGeomEntitiesRead(self, serialized_geom_entities_read):
         deserialized_geom_entities_read = {}
         
-        for salome_ID in serialized_geom_entities_read:
-            salome_identifier = serialized_geom_entities_read[salome_ID][0]
-            node_list = serialized_geom_entities_read[salome_ID][1]
+        for serialized_entity in serialized_geom_entities_read:
+            # serialized_entity = [self.salome_ID, self.salome_identifier, self.node_list]
+            salome_ID         = serialized_entity[0]
+            salome_identifier = serialized_entity[1]
+            node_list         = serialized_entity[2]
     
             geom_entity = GeometricEntitySalome(salome_ID, salome_identifier, node_list)
             
@@ -667,18 +673,19 @@ class MeshSubmodelPart:
     
     def WriteMesh(self, file):
         # Write Header
-        file.write("Begin SubModelPart " + self.file_name + "\n")
-        
-        # Write Nodes
-        self._WriteNodes(file)
-        
-        # Write Elements
-        self._WriteElements(file)
-        
-        # Write Conditions
-        self._WriteConditions(file)
-        
-        file.write("End SubModelPart // " + self.file_name + "\n\n")
+        if self.write_smp:
+            file.write("Begin SubModelPart " + self.file_name + "\n")
+            
+            # Write Nodes
+            self._WriteNodes(file)
+            
+            # Write Elements
+            self._WriteElements(file)
+            
+            # Write Conditions
+            self._WriteConditions(file)
+            
+            file.write("End SubModelPart // " + self.file_name + "\n\n")
         
             
     def _WriteNodes(self, file):
