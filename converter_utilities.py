@@ -2,6 +2,8 @@ import sys
 import tkinter as tk
 from os.path import splitext, basename
 import time
+import logging
+logging.basicConfig(level=logging.DEBUG)
 
 DEBUG = True
 unsaved_changes_exist = False
@@ -178,6 +180,18 @@ def GetDebugFlag():
 
 def GetTreeItem(tree, event):
     return tree.identify('item', event.x, event.y)
+
+
+def DictKeyToInt(dictionary):
+    if not isinstance(dictionary, dict):
+        raise Exception("Input is not a dict!")
+
+    dictionary_int = {}
+
+    for key, val in dictionary.items():
+        dictionary_int.update({ int(key) : val })
+
+    return dictionary_int
   
 
 
@@ -362,7 +376,6 @@ class MainModelPart:
         for node_ID in smp_nodes.keys():
             if node_ID in self.nodes.keys():
                 existing_node_coords = self.nodes[node_ID]
-                print("Double Check")
                 if existing_node_coords != smp_nodes[node_ID]:
                     raise Exception("Node with ID", node_ID, "already exists with different coordinates!")
             else:
@@ -509,7 +522,7 @@ class MeshSubmodelPart:
 
     def Serialize(self):
         serialized_smp = {}
-        print("Serializing" , self.file_name)
+        logging.info("Serializing " + self.file_name)
 
         serialized_smp["mesh_information"] = self.dictionary
         serialized_smp["nodes_read"] = self._SerializeNodesRead()
@@ -535,7 +548,8 @@ class MeshSubmodelPart:
 
 
     def Deserialize(self, smp_name, serialized_smp):
-        dictionary = serialized_smp["mesh_information"]
+        dictionary = self._DeserializeDictionary(serialized_smp)
+
         nodes_read = {}
         geom_entities_read = {}
         if "nodes_read" in serialized_smp:
@@ -545,13 +559,19 @@ class MeshSubmodelPart:
 
         self.FillWithEntities(smp_name, dictionary, nodes_read, geom_entities_read)
 
-        print(self.geom_entities_read.keys())
+        logging.info("Deserialized " + smp_name)
 
-        print("Deserialized" , smp_name)
+
+    def _DeserializeDictionary(self, serialized_smp):
+        # concert the keys to strings (has to be done bcs json converts ints to string)
+        if not "mesh_information" in serialized_smp:
+            raise Exception("\"mesh_information\" is not in serialized SubModelPart")
+
+        return DictKeyToInt(serialized_smp["mesh_information"])
 
     
     def _DeserializeNodesRead(self, serialized_nodes_read):
-        return serialized_nodes_read # Nodes don't need deserialization
+        return DictKeyToInt(serialized_nodes_read) # Nodes don't need deserialization
 
 
     def _DeserializeGeomEntitiesRead(self, serialized_geom_entities_read):
@@ -562,7 +582,7 @@ class MeshSubmodelPart:
             node_list = serialized_geom_entities_read[salome_ID][1]
     
             geom_entity = GeometricEntitySalome(salome_ID, salome_identifier, node_list)
-        
+            
             if salome_identifier not in deserialized_geom_entities_read: # geom entities with this identifier are already existing # TODO don't I have to use .key() here?
                 deserialized_geom_entities_read[salome_identifier] = []
 
@@ -601,13 +621,12 @@ class MeshSubmodelPart:
     def _AddElements(self):
         self.elements.clear()
 
-        print(self.dictionary)
         for salome_identifier in self.dictionary.keys():
-            geom_entities = self.geom_entities_read[int(salome_identifier)] #int conversion necessary bcs self.dictionary contains strings for some reason ... TODO
+            geom_entities = self.geom_entities_read[salome_identifier] #int conversion necessary bcs self.dictionary contains strings for some reason ... TODO
             
             if "Element" in self.dictionary[salome_identifier]:
                 element_list = self.dictionary[salome_identifier]["Element"]
-                for element_name in element_list:
+                for element_name in sorted(element_list):
                     if element_name not in self.elements:
                         self.elements[element_name] = []
                         
@@ -619,11 +638,11 @@ class MeshSubmodelPart:
         self.conditions.clear()
 
         for salome_identifier in self.dictionary.keys():
-            geom_entities = self.geom_entities_read[int(salome_identifier)]
+            geom_entities = self.geom_entities_read[salome_identifier]
             
             if "Condition" in self.dictionary[salome_identifier]:
                 condition_list = self.dictionary[salome_identifier]["Condition"]
-                for condition_name in condition_list:
+                for condition_name in sorted(condition_list):
                     if condition_name not in self.conditions:
                         self.conditions[condition_name] = []
                         
