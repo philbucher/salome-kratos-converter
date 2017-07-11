@@ -21,7 +21,7 @@ Intended for non-commercial use in research
 
 
 # Set this Variable to "True" for debugging
-DEBUG = True
+DEBUG = False
 
 # Python imports
 import sys
@@ -40,11 +40,11 @@ conv_scheme_file_ending = ".conv.scheme.json"
 conv_project_file_ending = ".conv.proj.json"
 
 SALOME_IDENTIFIERS = {
-        102 : "Lines",
-        203 : "Triangles",
+        102 : "Line",
+        203 : "Triangle",
         204 : "Quadrilateral",
-        304 : "Tetrahedrals"
-        
+        304 : "Tetrahedral",
+        308 : "Hexahedral"        
 }
 
 
