@@ -1,8 +1,8 @@
 '''
-  ___   _   _    ___  __  __ ___    _  __         _             ___                     _           
- / __| /_\ | |  / _ \|  \/  | __|__| |/ /_ _ __ _| |_ ___ ___  / __|___ _ ___ _____ _ _| |_ ___ _ _ 
- \__ \/ _ \| |_| (_) | |\/| | _|___| ' <| '_/ _` |  _/ _ (_-< | (__/ _ \ ' \ V / -_) '_|  _/ -_) '_|
- |___/_/ \_\____\___/|_|  |_|___|  |_|\_\_| \__,_|\__\___/__/  \___\___/_||_\_/\___|_|  \__\___|_|  
+  ___   _   _    ___  __  __ ___    _  __         _           
+ / __| /_\ | |  / _ \|  \/  | __|__| |/ /_ _ __ _| |_ ___ ___ 
+ \__ \/ _ \| |_| (_) | |\/| | _|___| ' <| '_/ _` |  _/ _ (_-< 
+ |___/_/ \_\____\___/|_|  |_|___|  |_|\_\_| \__,_|\__\___/__/ Converter
 
 
 Salome to Kratos Converter
@@ -17,6 +17,7 @@ Intended for non-commercial use in research
 # sort selection window by entities (nodes, elements, conditions)
 # add geometrical information to the Kratos entities
 # initial directories
+# add version (and other info such as date / time , ...) of converter to project file
 
 
 # Set this Variable to "True" for debugging
@@ -25,6 +26,7 @@ DEBUG = True
 # Python imports
 import sys
 import tkinter as tk
+from tkinter import filedialog
 from os.path import splitext, basename
 import time
 import logging
@@ -231,11 +233,10 @@ def GetOS():
 
 
 def PrintLogo():
-    print('''
-  ___   _   _    ___  __  __ ___    _  __         _             ___                     _           
- / __| /_\ | |  / _ \|  \/  | __|__| |/ /_ _ __ _| |_ ___ ___  / __|___ _ ___ _____ _ _| |_ ___ _ _ 
- \__ \/ _ \| |_| (_) | |\/| | _|___| ' <| '_/ _` |  _/ _ (_-< | (__/ _ \ ' \ V / -_) '_|  _/ -_) '_|
- |___/_/ \_\____\___/|_|  |_|___|  |_|\_\_| \__,_|\__\___/__/  \___\___/_||_\_/\___|_|  \__\___|_|  
+    print('''  ___   _   _    ___  __  __ ___    _  __         _          
+ / __| /_\ | |  / _ \|  \/  | __|__| |/ /_ _ __ _| |_ ___ ___
+ \__ \/ _ \| |_| (_) | |\/| | _|___| ' <| '_/ _` |  _/ _ (_-<
+ |___/_/ \_\____\___/|_|  |_|___|  |_|\_\_| \__,_|\__\___/__/ Converter
     ''')
 
 
