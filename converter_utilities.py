@@ -18,10 +18,12 @@ Intended for non-commercial use in research
 # add geometrical information to the Kratos entities
 # initial directories
 # add version (and other info such as date / time , ...) of converter to project file
+# "// GUI group identifier:" in mdpa
 
 
 # Set this Variable to "True" for debugging
-DEBUG = False
+DEBUG = True
+MINIMIZE_FILE_SIZE = False # Set this to minimize the file size, will be slower though and the mdpa is less readable!
 
 # Python imports
 import sys
@@ -295,12 +297,13 @@ class GeometricalObject:
             raise Exception("No new ID has been assiged")
         return self.new_ID
     
-    def GetWriteLine(self, ID):
+    def GetWriteLine(self, ID, format_str, space):
         self.new_ID = ID
         # "0" is the Property Placeholder
-        line = str(self.new_ID) + "\t0"
+        line = format_str.format(str(self.new_ID), "0")
+
         for node in self.origin_entity.GetNodeList():
-            line += "\t" + str(node)
+            line += space + str(node)
         
         return line
         
@@ -327,6 +330,7 @@ class MainModelPart:
         self._InitializeMesh()
         self.mesh_read = False
         self.precision = 12 # Same as in Kratos ("/kratos/includes/gid_io.h")
+        self.num_spaces = 3 # number of spaces in mdpa btw numbers
         
         
     def _InitializeMesh(self):
@@ -336,6 +340,10 @@ class MainModelPart:
         self.node_counter = 1
         self.element_counter = 1
         self.condition_counter = 1
+        # Variables for optimizing the size of the mdpa file
+        self.max_node_coord_x = 0
+        self.max_node_coord_y = 0
+        self.max_node_coord_z = 0
     
     
     def GetMeshRead(self):
@@ -454,6 +462,10 @@ class MainModelPart:
                     raise Exception("Node with ID", node_ID, "already exists with different coordinates!")
             else:
                 self.nodes[node_ID] = smp_nodes[node_ID]
+                if not MINIMIZE_FILE_SIZE:
+                    if smp_nodes[node_ID][0] > self.max_node_coord_x: self.max_node_coord_x = smp_nodes[node_ID][0]
+                    if smp_nodes[node_ID][1] > self.max_node_coord_y: self.max_node_coord_y = smp_nodes[node_ID][1]
+                    if smp_nodes[node_ID][2] > self.max_node_coord_z: self.max_node_coord_z = smp_nodes[node_ID][2]
         
         
     def _AddElements(self, smp_elements):
@@ -496,6 +508,7 @@ class MainModelPart:
         return sum([len(val) for val in self.conditions.values()])
     
     def WriteMesh(self, file):
+        logging.info("Writing Mesh")
         self._Assemble() # TODO only do this if sth has changed
         # Write Header
         self._WriteMeshInfo(file)
@@ -522,41 +535,70 @@ class MainModelPart:
     def _WriteNodes(self, file):
         file.write("Begin Nodes\n")
 
+        if MINIMIZE_FILE_SIZE:
+            format_str = '{} {} {} {}'
+        else:
+            max_ID = max(self.nodes.keys())
+            logging.debug("Max Node ID: " + str(max_ID))
+
+            spaces_coords_x = '{:>' + str(len(str(int(self.max_node_coord_x))) + self.precision + self.num_spaces) + '} '
+            spaces_coords_y = '{:>' + str(len(str(int(self.max_node_coord_y))) + self.precision + self.num_spaces) + '} '
+            spaces_coords_z = '{:>' + str(len(str(int(self.max_node_coord_z))) + self.precision + self.num_spaces) + '} '
+            format_str = '{:>' + str(len(str(max_ID))) + '} ' + spaces_coords_x + spaces_coords_y + spaces_coords_z
+            
+        logging.debug("Node Format String: " + str(format_str))
+
         for ID in sorted(list(self.nodes.keys())):
             coords = self.nodes[ID]
-            
+
             coords = [round(coords[0], self.precision), 
                       round(coords[1], self.precision), 
                       round(coords[2], self.precision)]
             
-            # TODO improve this, somehow take into account the max number
-            line_new = ('{:<5}  {:>20}  {:>20}  {:>20}'.format(str(ID), str(coords[0]), str(coords[1]), str(coords[2]))) + "\n"
-            
-            # line = str(ID) + "\t" + str(coords[0]) + "\t" + str(coords[1]) + "\t" + str(coords[2]) + "\n"
-            # file.write(line)
+            line = format_str.format(str(ID), coords[0], str(coords[1]), str(coords[2])) + "\n"
 
-            file.write(line_new)
+            file.write(line)
         
         file.write("End Nodes\n\n")
         
         
     def _WriteElements(self, file):
+        if MINIMIZE_FILE_SIZE:
+            format_str = '{} {}'
+            space = " "
+        else:
+            num_elements = self._NumberOfElements()
+            format_str = '{:>' + str(len(str(num_elements))) + '} {:>' + str(self.num_spaces) + '}'
+            space = "\t"
+
+        logging.debug("Element Format String: " + str(format_str))
+
         for name in sorted(list(self.elements.keys())):
             file.write("Begin Elements " + name + "\n")
             elements_by_name = self.elements[name]
             for elem in elements_by_name:
-                file.write(elem.GetWriteLine(self.element_counter) + "\n")
+                file.write(elem.GetWriteLine(self.element_counter, format_str, space) + "\n")
                 self.element_counter += 1
             
             file.write("End Elements // " + name + "\n\n")
         
         
     def _WriteConditions(self, file):
+        if MINIMIZE_FILE_SIZE:
+            format_str = '{} {}'
+            space = " "
+        else:
+            num_conditions = self._NumberOfConditions()
+            format_str = '{:>' + str(len(str(num_conditions))) + '} {:>' + str(self.num_spaces) + '}'
+            space = "\t"
+
+        logging.debug("Condition Format String: " + str(format_str))
+
         for name in sorted(list(self.conditions.keys())):
             file.write("Begin Conditions " + name + "\n")
             condition_by_name = self.conditions[name]
             for cond in condition_by_name:
-                file.write(cond.GetWriteLine(self.condition_counter) + "\n")
+                file.write(cond.GetWriteLine(self.condition_counter, format_str, space) + "\n")
                 self.condition_counter += 1
             
             file.write("End Conditions // " + name + "\n\n")
@@ -599,7 +641,7 @@ class MeshSubmodelPart:
 
     def Serialize(self):
         serialized_smp = {}
-        logging.info("Serializing " + self.smp_info_dict["smp_name"])
+        logging.debug("Serializing " + self.smp_info_dict["smp_name"])
 
         serialized_smp["submodelpart_information"] = self.smp_info_dict
         serialized_smp["mesh_information"] = self.mesh_dict
@@ -637,7 +679,7 @@ class MeshSubmodelPart:
 
         self.FillWithEntities(smp_info_dict, mesh_dict, nodes_read, geom_entities_read)
 
-        logging.info("Deserialized " + smp_name)
+        logging.debug("Deserialized " + smp_name)
 
 
     def _DeserializeDictionary(self, serialized_smp):
@@ -758,44 +800,49 @@ class MeshSubmodelPart:
             smp_name = self.smp_info_dict["smp_name"]
             file.write("Begin SubModelPart " + smp_name + "\n")
             
+            space = "\t"
+            if MINIMIZE_FILE_SIZE:
+                space = ""
+
             # Write Nodes
-            self._WriteNodes(file)
+            self._WriteNodes(file, space)
             
             # Write Elements
-            self._WriteElements(file)
+            self._WriteElements(file, space)
             
             # Write Conditions
-            self._WriteConditions(file)
+            self._WriteConditions(file, space)
             
             file.write("End SubModelPart // " + smp_name + "\n\n")
         
             
-    def _WriteNodes(self, file):
-        file.write("\tBegin SubModelPartNodes\n")
+    def _WriteNodes(self, file, space):
+        file.write(space + "Begin SubModelPartNodes\n")
+
         for ID in sorted(self.nodes.keys()):
-            file.write("\t\t" + str(ID) + "\n")
+            file.write(space + space + str(ID) + "\n")
         
-        file.write("\tEnd SubModelPartNodes\n\n")
+        file.write(space + "End SubModelPartNodes\n")
         
         
-    def _WriteElements(self, file):
-        file.write("\tBegin SubModelPartElements \n")
+    def _WriteElements(self, file, space):
+        file.write(space + "Begin SubModelPartElements \n")
         
         for element_name in sorted(self.elements.keys()):
             for elem in self.elements[element_name]:
-                file.write("\t\t" + str(elem.GetID()) + "\n")
+                file.write(space + space + str(elem.GetID()) + "\n")
             
-        file.write("\tEnd SubModelPartElements \n\n")
+        file.write(space + "End SubModelPartElements \n")
         
         
-    def _WriteConditions(self, file):
-        file.write("\tBegin SubModelPartConditions \n")
+    def _WriteConditions(self, file, space):
+        file.write(space + "Begin SubModelPartConditions \n")
         
         for condition_name in sorted(self.conditions.keys()):
             for cond in self.conditions[condition_name]:
-                file.write("\t\t" + str(cond.GetID()) + "\n")
+                file.write(space + space + str(cond.GetID()) + "\n")
             
-        file.write("\tEnd SubModelPartConditions \n\n")
+        file.write(space + "End SubModelPartConditions \n\n")
 
     def WriteMeshInfo(self, file):
         if self.smp_info_dict["write_smp"]: 
