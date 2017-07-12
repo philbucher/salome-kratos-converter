@@ -1,9 +1,12 @@
 '''
-  ___   _   _    ___  __  __ ___    _  __         _           
- / __| /_\ | |  / _ \|  \/  | __|__| |/ /_ _ __ _| |_ ___ ___ 
- \__ \/ _ \| |_| (_) | |\/| | _|___| ' <| '_/ _` |  _/ _ (_-< 
- |___/_/ \_\____\___/|_|  |_|___|  |_|\_\_| \__,_|\__\___/__/ Converter
-
+  ___   _   _    ___  __  __ ___    _  _____    _ _____ ___  ___  
+ / __| /_\ | |  / _ \|  \/  | __|__| |/ / _ \  /_\_   _/ _ \/ __| 
+ \__ \/ _ \| |_| (_) | |\/| | _|___| ' <|   / / _ \| || (_) \__ \ 
+ |___/_/ \_\____\___/|_|  |_|___|  |_|\_\_|_\/_/ \_\_| \___/|___/ 
+  / __|___ _ ___ _____ _ _| |_ ___ _ _                            
+ | (__/ _ \ ' \ V / -_) '_|  _/ -_) '_|                           
+  \___\___/_||_\_/\___|_|  \__\___|_|                             
+                                                                  
 
 Salome to Kratos Converter
 Converts *.dat files that contain mesh information to *.mdpa file to be used as input for Kratos Multiphysics.
@@ -17,19 +20,19 @@ Intended for non-commercial use in research
 # sort selection window by entities (nodes, elements, conditions)
 # add geometrical information to the Kratos entities
 # initial directories
-# add version (and other info such as date / time , ...) of converter to project file
 # "// GUI group identifier:" in mdpa
+# Nodal Elements
 
 
-# Set this Variable to "True" for debugging
-DEBUG = True
-MINIMIZE_FILE_SIZE = False # Set this to minimize the file size, will be slower though and the mdpa is less readable!
+DEBUG = True          # Set this Variable to "True" for debugging
+READABLE_MDPA = True  # Use this to get a nicely formatted mdpa file. Works in most cases, but files are larger (~20%) and mdpa writing takes slightly more time
+VERSION = 1.0
 
 # Python imports
 import sys
 import tkinter as tk
 from tkinter import filedialog
-from os.path import splitext, basename
+from os.path import splitext, basename, isfile
 import time
 import logging
 
@@ -187,6 +190,7 @@ def CloseWindow(window, master):
 # Functions related to Files
 def GetFilePathOpen(FileType):
     file_path = ""
+    valid_file = False
     if (FileType == "dat"):
         file_path = tk.filedialog.askopenfilename(title="Open file",filetypes=[("salome mesh","*.dat")])
     elif (FileType == conv_project_file_ending):
@@ -196,8 +200,16 @@ def GetFilePathOpen(FileType):
         # file_path = tk.filedialog.askopenfilename(initialdir='/home/philippb', title="Open file",filetypes=[("converter files","*" + conv_file_ending)])
     else:
         print("Unsupported FileType") # TODO make messagebox
+    
+    if file_path != "":
+        valid_file = FileExists(file_path)
+        logging.debug("File Path: " + file_path)
+    
+    return file_path, valid_file
 
-    return file_path
+
+def FileExists(file_path):
+    return isfile(file_path)
 
 
 def GetFilePathSave(FileType):
@@ -219,6 +231,17 @@ def GetFileName(FilePath):
 
 
 # Other Functions
+def GetGeneralInfoDict():
+    general_info_dict = {}
+    localtime = time.asctime( time.localtime(time.time()) )
+    
+    general_info_dict.update({"Version" : VERSION})
+    general_info_dict.update({"Date" : localtime})
+    general_info_dict.update({"OperatingSystem" : GetOS()})
+    
+    return general_info_dict
+
+
 def GetOS():
     os_name = "unknown"
 
@@ -235,19 +258,22 @@ def GetOS():
 
 
 def PrintLogo():
-    print('''  ___   _   _    ___  __  __ ___    _  __         _          
- / __| /_\ | |  / _ \|  \/  | __|__| |/ /_ _ __ _| |_ ___ ___
- \__ \/ _ \| |_| (_) | |\/| | _|___| ' <| '_/ _` |  _/ _ (_-<
- |___/_/ \_\____\___/|_|  |_|___|  |_|\_\_| \__,_|\__\___/__/ Converter
-    ''')
+    print('''  ___   _   _    ___  __  __ ___    _  _____    _ _____ ___  ___  
+ / __| /_\ | |  / _ \|  \/  | __|__| |/ / _ \  /_\_   _/ _ \/ __| 
+ \__ \/ _ \| |_| (_) | |\/| | _|___| ' <|   / / _ \| || (_) \__ \ 
+ |___/_/ \_\____\___/|_|  |_|___|  |_|\_\_|_\/_/ \_\_| \___/|___/ 
+  / __|___ _ ___ _____ _ _| |_ ___ _ _                            
+ | (__/ _ \ ' \ V / -_) '_|  _/ -_) '_|                           
+  \___\___/_||_\_/\___|_|  \__\___|_|  ''')
+    print("   VERSION", VERSION)
 
 
 def GetEntityType(SalomeIdentifier):
-    pre_string = "Unknown"
-    if (SalomeIdentifier in SALOME_IDENTIFIERS):
-        pre_string = SALOME_IDENTIFIERS[SalomeIdentifier]
+    post_string = "Unknown"
+    if SalomeIdentifier in SALOME_IDENTIFIERS:
+        post_string = SALOME_IDENTIFIERS[SalomeIdentifier]
 
-    return str(SalomeIdentifier) + "_" + pre_string
+    return str(SalomeIdentifier) + "_" + post_string
 
 
 def GetNumberOfNodes(String):
@@ -268,7 +294,54 @@ def DictKeyToInt(dictionary):
         dictionary_int.update({ int(key) : val })
 
     return dictionary_int
+
+
+def CorrectMeshDict(mesh_dict):
+    # This function converts some keys from str back to int (caused by loading json files)
+    corrected_mesh_dict = {}
+    print(mesh_dict)
+    for key, val in mesh_dict.items():
+        if key == "entity_creation":
+            corrected_mesh_dict.update({"entity_creation" : DictKeyToInt(mesh_dict["entity_creation"])})
+        else:
+            corrected_mesh_dict.update({key : val})
+    
+    return corrected_mesh_dict
   
+
+def GetDictFromTree(tree):
+    dictionary = {"entity_creation" : {}}
+
+    for child in tree.get_children():
+        if (tree.tag_has("Element", child)):
+            item_values = tree.item(child,"values")
+            element_name = item_values[0]
+            property_ID = item_values[1]
+            salome_identifier = int(item_values[2].split("_")[0])
+            
+            AddEntryToDict(dictionary, salome_identifier, "Element", element_name, property_ID)
+
+        if (tree.tag_has("Condition", child)):
+            item_values = tree.item(child,"values")
+            condition_name = item_values[0]
+            property_ID = item_values[1]
+            salome_identifier = int(item_values[2].split("_")[0])
+            
+            AddEntryToDict(dictionary, salome_identifier, "Condition", condition_name, property_ID)
+    
+    return dictionary
+    
+    
+def AddEntryToDict(json_dict, salome_identifier, entity_type, entity_name, property_ID):
+    if salome_identifier not in json_dict["entity_creation"]:
+        json_dict["entity_creation"][salome_identifier] = {}
+        
+    if entity_type not in json_dict["entity_creation"][salome_identifier]:
+        json_dict["entity_creation"][salome_identifier][entity_type] = {}
+            
+    json_dict["entity_creation"][salome_identifier][entity_type].update({entity_name: property_ID})
+
+
 
 
 class GeometricEntitySalome:
@@ -287,10 +360,11 @@ class GeometricEntitySalome:
         
     
 class GeometricalObject:
-    def __init__(self, salome_entity, name):
+    def __init__(self, salome_entity, name, property_ID):
         self.origin_entity = salome_entity
         self.name = name        
         self.new_ID = -1
+        self.property_ID = property_ID
     
     def GetID(self):
         if self.new_ID == -1:
@@ -300,7 +374,7 @@ class GeometricalObject:
     def GetWriteLine(self, ID, format_str, space):
         self.new_ID = ID
         # "0" is the Property Placeholder
-        line = format_str.format(str(self.new_ID), "0")
+        line = format_str.format(str(self.new_ID), str(self.property_ID))
 
         for node in self.origin_entity.GetNodeList():
             line += space + str(node)
@@ -310,14 +384,14 @@ class GeometricalObject:
         
     
 class Element(GeometricalObject):
-    def __init__(self, salome_entity, name):
-        super().__init__(salome_entity, name)
+    def __init__(self, salome_entity, name, property_ID):
+        super().__init__(salome_entity, name, property_ID)
         
         
         
 class Condition(GeometricalObject):
-    def __init__(self, salome_entity, name):
-        super().__init__(salome_entity, name)
+    def __init__(self, salome_entity, name, property_ID):
+        super().__init__(salome_entity, name, property_ID)
         
         
         
@@ -379,40 +453,18 @@ class MainModelPart:
         return mp_dict
         
         
-    def AddMesh(self, smp_info_dict, tree_selection, nodes_read, geom_entities_read):
-        mesh_dict = self._GetDictFromTree(tree_selection)
+    def AddMesh(self, smp_info_dict, mesh_dict, nodes_read, geom_entities_read):
         smp_name = smp_info_dict["smp_name"]
         self.sub_model_parts[smp_name] = MeshSubmodelPart()
         self.sub_model_parts[smp_name].FillWithEntities(smp_info_dict, mesh_dict, nodes_read, geom_entities_read)
         
         self.mesh_read = True
 
-    def UpdateMesh(self, old_smp_name, smp_info_dict, tree):
+    def UpdateMesh(self, old_smp_name, smp_info_dict, mesh_dict):
         new_smp_name = smp_info_dict["smp_name"]
         self.sub_model_parts[new_smp_name] = self.sub_model_parts.pop(old_smp_name) # Update the key
         
-        self.sub_model_parts[new_smp_name].Update(smp_info_dict, self._GetDictFromTree(tree))
-
-
-    def _GetDictFromTree(self, tree):
-        dictionary = {}
-
-        for child in tree.get_children():
-            if (tree.tag_has("Element", child)):
-                item_values = tree.item(child,"values")
-                element_name = item_values[0]
-                salome_identifier = int(item_values[1].split("_")[0])
-                
-                self._AddEntryToDict(dictionary, salome_identifier, "Element", element_name)
-
-            if (tree.tag_has("Condition", child)):
-                item_values = tree.item(child,"values")
-                condition_name = item_values[0]
-                salome_identifier = int(item_values[1].split("_")[0])
-                
-                self._AddEntryToDict(dictionary, salome_identifier, "Condition", condition_name)
-        
-        return dictionary
+        self.sub_model_parts[new_smp_name].Update(smp_info_dict, mesh_dict)
 
     
     def RemoveSubmodelPart(self, name_smp):
@@ -436,8 +488,9 @@ class MainModelPart:
         self.Reset()
 
         for smp_name in sorted(serialized_dict.keys()):
-            self.sub_model_parts[smp_name] = MeshSubmodelPart()
-            self.sub_model_parts[smp_name].Deserialize(smp_name, serialized_dict[smp_name])
+            if smp_name != "general":
+                self.sub_model_parts[smp_name] = MeshSubmodelPart()
+                self.sub_model_parts[smp_name].Deserialize(smp_name, serialized_dict[smp_name])
         
         self.mesh_read = True
 
@@ -462,7 +515,7 @@ class MainModelPart:
                     raise Exception("Node with ID", node_ID, "already exists with different coordinates!")
             else:
                 self.nodes[node_ID] = smp_nodes[node_ID]
-                if not MINIMIZE_FILE_SIZE:
+                if READABLE_MDPA:
                     if smp_nodes[node_ID][0] > self.max_node_coord_x: self.max_node_coord_x = smp_nodes[node_ID][0]
                     if smp_nodes[node_ID][1] > self.max_node_coord_y: self.max_node_coord_y = smp_nodes[node_ID][1]
                     if smp_nodes[node_ID][2] > self.max_node_coord_z: self.max_node_coord_z = smp_nodes[node_ID][2]
@@ -482,16 +535,6 @@ class MainModelPart:
                 self.conditions[condition_name] = []
                                 
             self.conditions[condition_name].extend(smp_conditions[condition_name])
-            
-    
-    def _AddEntryToDict(self, json_dict, salome_identifier, entity_type, entity_name):
-        if salome_identifier not in json_dict:
-            json_dict[salome_identifier] = {}
-            
-        if entity_type not in json_dict[salome_identifier]:
-            json_dict[salome_identifier][entity_type] = []
-                
-        json_dict[salome_identifier][entity_type].append(entity_name)
         
         
     def GetTreeItems(self):
@@ -535,9 +578,7 @@ class MainModelPart:
     def _WriteNodes(self, file):
         file.write("Begin Nodes\n")
 
-        if MINIMIZE_FILE_SIZE:
-            format_str = '{} {} {} {}'
-        else:
+        if READABLE_MDPA:
             max_ID = max(self.nodes.keys())
             logging.debug("Max Node ID: " + str(max_ID))
 
@@ -545,6 +586,8 @@ class MainModelPart:
             spaces_coords_y = '{:>' + str(len(str(int(self.max_node_coord_y))) + self.precision + self.num_spaces) + '} '
             spaces_coords_z = '{:>' + str(len(str(int(self.max_node_coord_z))) + self.precision + self.num_spaces) + '} '
             format_str = '{:>' + str(len(str(max_ID))) + '} ' + spaces_coords_x + spaces_coords_y + spaces_coords_z
+        else:
+            format_str = '{} {} {} {}'
             
         logging.debug("Node Format String: " + str(format_str))
 
@@ -563,13 +606,13 @@ class MainModelPart:
         
         
     def _WriteElements(self, file):
-        if MINIMIZE_FILE_SIZE:
-            format_str = '{} {}'
-            space = " "
-        else:
+        if READABLE_MDPA:
             num_elements = self._NumberOfElements()
             format_str = '{:>' + str(len(str(num_elements))) + '} {:>' + str(self.num_spaces) + '}'
             space = "\t"
+        else:
+            format_str = '{} {}'
+            space = " "
 
         logging.debug("Element Format String: " + str(format_str))
 
@@ -584,13 +627,13 @@ class MainModelPart:
         
         
     def _WriteConditions(self, file):
-        if MINIMIZE_FILE_SIZE:
-            format_str = '{} {}'
-            space = " "
-        else:
+        if READABLE_MDPA:
             num_conditions = self._NumberOfConditions()
             format_str = '{:>' + str(len(str(num_conditions))) + '} {:>' + str(self.num_spaces) + '}'
             space = "\t"
+        else:
+            format_str = '{} {}'
+            space = " "
 
         logging.debug("Condition Format String: " + str(format_str))
 
@@ -637,6 +680,11 @@ class MeshSubmodelPart:
         self.smp_info_dict_used_for_assembly = None
         self.mesh_dict_used_for_assembly = None
         self.Initialize()
+        
+
+    def Update(self, smp_info_dict, mesh_dict):
+        self.smp_info_dict = smp_info_dict
+        self.mesh_dict = mesh_dict
 
 
     def Serialize(self):
@@ -689,8 +737,10 @@ class MeshSubmodelPart:
 
         if not "mesh_information" in serialized_smp:
             raise Exception("\"mesh_information\" is not in serialized SubModelPart!")
+        
+        mesh_dict = CorrectMeshDict(serialized_smp["mesh_information"])
 
-        return serialized_smp["submodelpart_information"], DictKeyToInt(serialized_smp["mesh_information"])
+        return serialized_smp["submodelpart_information"], mesh_dict
 
     
     def _DeserializeNodesRead(self, serialized_nodes_read):
@@ -713,13 +763,7 @@ class MeshSubmodelPart:
 
             deserialized_geom_entities_read[salome_identifier].append(geom_entity)
         
-        return deserialized_geom_entities_read
-
-
-    def Update(self, smp_info_dict, mesh_dict):
-        self.smp_info_dict = smp_info_dict
-        self.mesh_dict = mesh_dict
-        
+        return deserialized_geom_entities_read        
         
     
     def GetGeomEntites(self):
@@ -747,33 +791,39 @@ class MeshSubmodelPart:
     def _AddElements(self):
         self.elements.clear()
 
-        for salome_identifier in self.mesh_dict.keys():
+        for salome_identifier in self.mesh_dict["entity_creation"].keys():
             geom_entities = self.geom_entities_read[salome_identifier]
             
-            if "Element" in self.mesh_dict[salome_identifier]:
-                element_list = self.mesh_dict[salome_identifier]["Element"]
+            if "Element" in self.mesh_dict["entity_creation"][salome_identifier]:
+                element_dict = self.mesh_dict["entity_creation"][salome_identifier]["Element"]
+                element_list = element_dict.keys()
                 for element_name in sorted(element_list):
                     if element_name not in self.elements:
                         self.elements[element_name] = []
-                        
+                    
+                    property_ID = element_dict[element_name]
+            
                     for entity in geom_entities:
-                        self.elements[element_name].append(Element(entity, element_name))
+                        self.elements[element_name].append(Element(entity, element_name, property_ID))
         
         
     def _AddConditions(self):
         self.conditions.clear()
 
-        for salome_identifier in self.mesh_dict.keys():
+        for salome_identifier in self.mesh_dict["entity_creation"].keys():
             geom_entities = self.geom_entities_read[salome_identifier]
             
-            if "Condition" in self.mesh_dict[salome_identifier]:
-                condition_list = self.mesh_dict[salome_identifier]["Condition"]
+            if "Condition" in self.mesh_dict["entity_creation"][salome_identifier]:
+                condition_dict = self.mesh_dict["entity_creation"][salome_identifier]["Condition"]
+                condition_list = condition_dict.keys()
                 for condition_name in sorted(condition_list):
                     if condition_name not in self.conditions:
                         self.conditions[condition_name] = []
+                    
+                    property_ID = condition_dict[condition_name]
                         
                     for entity in geom_entities:
-                        self.conditions[condition_name].append(Condition(entity, condition_name))        
+                        self.conditions[condition_name].append(Condition(entity, condition_name, property_ID))        
     
     def GetMesh(self):
         return self.nodes, self.elements, self.conditions
@@ -796,13 +846,13 @@ class MeshSubmodelPart:
     
     def WriteMesh(self, file):
         # Write Header
-        if self.smp_info_dict["write_smp"]:
+        if self.mesh_dict["write_smp"]:
             smp_name = self.smp_info_dict["smp_name"]
             file.write("Begin SubModelPart " + smp_name + "\n")
             
-            space = "\t"
-            if MINIMIZE_FILE_SIZE:
-                space = ""
+            space = ""
+            if READABLE_MDPA:
+                space = "\t"
 
             # Write Nodes
             self._WriteNodes(file, space)
@@ -845,7 +895,7 @@ class MeshSubmodelPart:
         file.write(space + "End SubModelPartConditions \n\n")
 
     def WriteMeshInfo(self, file):
-        if self.smp_info_dict["write_smp"]: 
+        if self.mesh_dict["write_smp"]: 
             file.write("// SubModelPart " + self.smp_info_dict["smp_name"] + "\n")
             file.write("//   Number of Nodes: " + str(self._NumberOfNodes()) + "\n")
             file.write("//   Number of Elements: " + str(self._NumberOfElements()) + "\n")

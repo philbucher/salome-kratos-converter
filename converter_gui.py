@@ -1,9 +1,12 @@
 '''
-  ___   _   _    ___  __  __ ___    _  __         _           
- / __| /_\ | |  / _ \|  \/  | __|__| |/ /_ _ __ _| |_ ___ ___ 
- \__ \/ _ \| |_| (_) | |\/| | _|___| ' <| '_/ _` |  _/ _ (_-< 
- |___/_/ \_\____\___/|_|  |_|___|  |_|\_\_| \__,_|\__\___/__/ Converter
-
+  ___   _   _    ___  __  __ ___    _  _____    _ _____ ___  ___  
+ / __| /_\ | |  / _ \|  \/  | __|__| |/ / _ \  /_\_   _/ _ \/ __| 
+ \__ \/ _ \| |_| (_) | |\/| | _|___| ' <|   / / _ \| || (_) \__ \ 
+ |___/_/ \_\____\___/|_|  |_|___|  |_|\_\_|_\/_/ \_\_| \___/|___/ 
+  / __|___ _ ___ _____ _ _| |_ ___ _ _                            
+ | (__/ _ \ ' \ V / -_) '_|  _/ -_) '_|                           
+  \___\___/_||_\_/\___|_|  \__\___|_|                             
+                                                                  
 
 Salome to Kratos Converter
 Converts *.dat files that contain mesh information to *.mdpa file to be used as input for Kratos Multiphysics.
@@ -103,6 +106,8 @@ class GUIObject(BaseWindow): # This is the main Window
         self.window.unbind("<Escape>") # Overwritting the base class behaviour
         
         self.window.bind("<Control-r>", lambda event: self._CreateReadMainMeshWindow())
+        self.window.bind("<Control-i>", lambda event: self._ImportConverterScheme())
+        self.window.bind("<Control-e>", lambda event: self._ExportConverterScheme())
 
         self._Initialize()
         
@@ -217,9 +222,9 @@ class GUIObject(BaseWindow): # This is the main Window
 
 
     def _ShowAboutInfo(self):
-        messagebox.showinfo("Information", "Salome2Kratos Converter\n" +
+        messagebox.showinfo("Information", "Salome-Kratos Converter\n" +
                                     "Author: Philipp Bucher\n" +
-                                    "Version: 1.0")
+                                    "Version: " + str(utils.VERSION))
 
     def _NewProject(self):
         # TODO check for unsaved changes and stuff
@@ -232,71 +237,97 @@ class GUIObject(BaseWindow): # This is the main Window
 
     def _OpenConverterProject(self):
         self._ResetGUI()
-        file_path = utils.GetFilePathOpen(utils.conv_project_file_ending)
+        file_path, valid_file = utils.GetFilePathOpen(utils.conv_project_file_ending)
+        utils.BringWindowToFront(self.window)
   
-        if file_path:
+        if valid_file:
             serialized_model_part_dict = {}
             with open(file_path, "r") as json_file:
                 serialized_model_part_dict = json.load(json_file)
 
             self.model_part.Deserialize(serialized_model_part_dict)
-
             self.UpdateMeshTree()
+            self.PlotCmdOutput("Opend the project", "green")
 
 
     def _SaveConverterProject(self, save_as):
-        if (self.save_file_path == "" or save_as):
-            input_save_file_path = tk.filedialog.asksaveasfilename(title="Select file",
-                                     filetypes=[("converter files","*" + utils.conv_project_file_ending)])
-            
-            if input_save_file_path: # A file path was returned
-                if not input_save_file_path.endswith(utils.conv_project_file_ending):
-                    input_save_file_path += utils.conv_project_file_ending
-
-                self.save_file_path = input_save_file_path
-        
-        if self.save_file_path == "":
-            self.PlotCmdOutput("File was not saved", "red")
+        if len(self.tree.get_children()) == 0:
+            self.PlotCmdOutput("Nothing to be saved", "red")
         else:
-            serialized_model_part_dict = self.model_part.Serialize()
-            with open(self.save_file_path, "w") as save_file:
-                if utils.DEBUG:
-                    # Do this only for debugging, file size is much larger!   
-                    json.dump(serialized_model_part_dict, save_file, sort_keys = True, indent = 4) 
-                else:
-                    json.dump(serialized_model_part_dict, save_file)
+            if (self.save_file_path == "" or save_as):
+                input_save_file_path = tk.filedialog.asksaveasfilename(title="Select file",
+                                         filetypes=[("converter files","*" + utils.conv_project_file_ending)])
+                
+                if input_save_file_path: # A file path was returned
+                    if not input_save_file_path.endswith(utils.conv_project_file_ending):
+                        input_save_file_path += utils.conv_project_file_ending
+    
+                    self.save_file_path = input_save_file_path
             
-            self.PlotCmdOutput("Saved the file", "green")
-            self.unsaved_changes_exist = False
+            if self.save_file_path == "":
+                self.PlotCmdOutput("File was not saved", "red")
+            else:
+                serialized_model_part_dict = self.model_part.Serialize()
+                
+                # Add general information to file                
+                serialized_model_part_dict.update({"general" : utils.GetGeneralInfoDict()})
+                
+                with open(self.save_file_path, "w") as save_file:
+                    if utils.DEBUG:
+                        # Do this only for debugging, file size is much larger!   
+                        json.dump(serialized_model_part_dict, save_file, sort_keys = True, indent = 4) 
+                    else:
+                        json.dump(serialized_model_part_dict, save_file)
+                
+                self.PlotCmdOutput("Saved the project", "green")
+                self.unsaved_changes_exist = False
 
 
     def _ImportConverterScheme(self):
         self._ResetGUI()
-        file_path = utils.GetFilePathOpen(utils.conv_scheme_file_ending)
+        file_path, valid_file = utils.GetFilePathOpen(utils.conv_scheme_file_ending)
+        utils.BringWindowToFront(self.window)
 
-        if file_path:
+        if valid_file:
             json_dict = {}
             with open(file_path, "r") as json_file:
                 json_dict = json.load(json_file)
-
-            self.UpdateMeshTree(json_dict)
+                if json_dict == {}:
+                    self.PlotCmdOutput("Nothing imported", "red")
+                else:
+                    corrected_json = {}
+                    for file_name in json_dict.keys():
+                        if file_name != "general":
+                            corrected_json.update({file_name : utils.CorrectMeshDict(json_dict[file_name])})
+                
+                    self.OpenChildWindow(self._CreateFileSelectionWindow, corrected_json)
 
 
     def _ExportConverterScheme(self):
-        input_save_file_path = tk.filedialog.asksaveasfilename(title="Select file",
-                                    filetypes=[("converter files","*" + utils.conv_scheme_file_ending)])
-        if input_save_file_path:
-            if not input_save_file_path.endswith(utils.conv_scheme_file_ending):
-                input_save_file_path += utils.conv_scheme_file_ending
+        if len(self.tree.get_children()) == 0:
+            self.PlotCmdOutput("Nothing to be exported", "red")
+        else:
+            input_save_file_path = tk.filedialog.asksaveasfilename(title="Select file",
+                                        filetypes=[("converter files","*" + utils.conv_scheme_file_ending)])
+            if input_save_file_path:
+                if not input_save_file_path.endswith(utils.conv_scheme_file_ending):
+                    input_save_file_path += utils.conv_scheme_file_ending
+    
+                model_part_dict = self.model_part.AssembleMeshInfoDict()
+                
+                # Add general information to file                
+                model_part_dict.update({"general" : utils.GetGeneralInfoDict()})
+                
+                with open(input_save_file_path, "w") as save_file:
+                    json.dump(model_part_dict, save_file, sort_keys = True, indent = 4)
+                
+                self.PlotCmdOutput("Exported the file", "green")
 
-            model_part_dict = self.model_part.AssembleMeshInfoDict()
-            with open(input_save_file_path, "w") as save_file:
-                json.dump(model_part_dict, save_file, sort_keys = True, indent = 4)
-            
-            self.PlotCmdOutput("Saved the file", "green")
-            utils.unsaved_changes_exist = False
 
-       
+    def _CreateFileSelectionWindow(self, json_dict):
+        return FileSelectionWindow(self, json_dict)
+
+        
     def _CreateReadMainMeshWindow(self):
         return ReadMeshWindow(self)
     
@@ -338,7 +369,7 @@ class GUIObject(BaseWindow): # This is the main Window
                     writing_successful = self.model_part.WriteMesh(mdpa_file)
 
             if writing_successful:
-                self.PlotCmdOutput("Mesh was written successfully!", "green")
+                self.PlotCmdOutput("MDPA-file was written successfully!", "green")
             else:
                 self.PlotCmdOutput("An error occured while writing the mesh", "red")
 
@@ -358,6 +389,7 @@ class GUIObject(BaseWindow): # This is the main Window
                 self.tree.insert(self.main_tree_item, "end", text=item, values=item_values, tag="Mesh")
 
 
+
 # This class provides functionalities for reading meshes
 class ReadMeshWindow(BaseWindow):
     def __init__(self, master, smp_name=None):
@@ -375,12 +407,13 @@ class ReadMeshWindow(BaseWindow):
             smp = self.master.GetModelPart().GetSubModelPart(smp_name)
             smp_info_dict = smp.GetInfoDict()
             self._FillInputTree(smp.GetGeomEntites())
-            self._FillOutputTree(smp.GetMeshInfoDict())
+            mesh_dict = smp.GetMeshInfoDict()
+            self._FillOutputTree(mesh_dict["entity_creation"])
             self.edited_mesh = True
             self.old_smp_name = smp_name
             self.smp_name_var.set(smp_name)
             self.smp_path_var.set(smp_info_dict["smp_file_path"])
-            self.write_smp_var.set(smp_info_dict["write_smp"])
+            self.write_smp_var.set(mesh_dict["write_smp"])
             
             self.file_name = smp_info_dict["smp_file_name"]
             self.file_path = smp_info_dict["smp_file_path"]
@@ -434,10 +467,14 @@ class ReadMeshWindow(BaseWindow):
 
         # Tree with entities that will be cretated
         self.tree_output = ttk.Treeview(self.window)
-        self.tree_output["columns"]=("col_entity_name", "col_origin_entity")
+        self.tree_output["columns"]=("col_entity_name", "col_property_ID", "col_origin_entity")
         self.tree_output.heading("#0", text="Entity Type")
         self.tree_output.heading("col_entity_name", text="Entity Name")
+        self.tree_output.heading("col_property_ID", text="Property ID")
         self.tree_output.heading("col_origin_entity", text="Origin Entity")
+        self.tree_output.column("col_entity_name", anchor=tk.CENTER)
+        self.tree_output.column("col_property_ID", anchor=tk.CENTER)
+        self.tree_output.column("col_origin_entity", anchor=tk.CENTER)
         self.tree_output.grid(row=6, sticky=tk.E, column=1, padx=15, pady=(0,15))
         self.tree_output.tag_configure("Element", foreground="blue")
         self.tree_output.tag_configure("Condition", foreground="red")
@@ -455,10 +492,10 @@ class ReadMeshWindow(BaseWindow):
         
         
     def _ReadAndParseMeshFile(self):
-        file_path = utils.GetFilePathOpen("dat")
+        file_path, valid_file = utils.GetFilePathOpen("dat")
         utils.BringWindowToFront(self.window)
 
-        if file_path: # check if file exists
+        if valid_file: # check if file exists
             self.tree_input.delete(*self.tree_input.get_children())
             self.tree_output.delete(*self.tree_output.get_children())
 
@@ -499,12 +536,15 @@ class ReadMeshWindow(BaseWindow):
     def _FillOutputTree(self, smp_dict):
         for salome_ID in sorted(smp_dict.keys()):
             for entity_type in sorted(smp_dict[salome_ID].keys()):
-                for entity_name in sorted(smp_dict[salome_ID][entity_type]):
-                    item_values = (entity_name, salome_ID)
+                entity_dict = smp_dict[salome_ID][entity_type]
+                entity_list = entity_dict.keys()
+                
+                for entity_name in sorted(entity_list):
+                    property_ID = entity_dict[entity_name]
+                    item_values = (entity_name, property_ID, utils.GetEntityType(salome_ID))
                     
                     self._InsertTreeOutputItem(entity_type, item_values)
-
-    
+                        
 
     def _EditTreeOutputItem(self, item):
         self.OpenChildWindow(self._CreateEntrySelectionWindowEditItem, item)
@@ -534,8 +574,9 @@ class ReadMeshWindow(BaseWindow):
     def _CreateEntrySelectionWindowEditItem(self, item):
         entity_type = self.tree_output.item(item,"text")
         entity_name = self.tree_output.item(item,"values")[0]
-        origin_entity = self.tree_output.item(item,"values")[1]
-        return EntrySelectionWindow(self, origin_entity, [entity_type, entity_name, item]) #Is only called if Item has tag "modifyable"
+        origin_entity = self.tree_output.item(item,"values")[2]
+        property_ID = self.tree_output.item(item,"values")[1]
+        return EntrySelectionWindow(self, origin_entity, [entity_type, entity_name, property_ID, item]) #Is only called if Item has tag "modifyable"
 
 
     def _ValidateInput(self):
@@ -562,17 +603,19 @@ class ReadMeshWindow(BaseWindow):
             smp_info_dict["smp_name"] = self.smp_name_var.get()
             smp_info_dict["smp_file_name"] = self.file_name
             smp_info_dict["smp_file_path"] = self.file_path
-            smp_info_dict["write_smp"] = self.write_smp_var.get()
+            
+            mesh_dict = utils.GetDictFromTree(self.tree_output)
+            mesh_dict["write_smp"] = self.write_smp_var.get()
 
             if self.file_parsed and self.edited_mesh: # A mesh was edited but then re-read (overwritten)
                 self.master.GetModelPart().RemoveSubmodelPart(self.old_smp_name)
-                self.master.GetModelPart().AddMesh(smp_info_dict, self.tree_output, self.nodes_read, self.geom_entities_read)
+                self.master.GetModelPart().AddMesh(smp_info_dict, mesh_dict, self.nodes_read, self.geom_entities_read)
 
             if self.file_parsed and not self.edited_mesh: # A mesh was read
-                self.master.GetModelPart().AddMesh(smp_info_dict, self.tree_output, self.nodes_read, self.geom_entities_read)
+                self.master.GetModelPart().AddMesh(smp_info_dict, mesh_dict, self.nodes_read, self.geom_entities_read)
         
             elif not self.file_parsed and self.edited_mesh: # A mesh was edited
-                self.master.GetModelPart().UpdateMesh(self.old_smp_name, smp_info_dict, self.tree_output)
+                self.master.GetModelPart().UpdateMesh(self.old_smp_name, smp_info_dict, mesh_dict)
         
             self.master.UpdateMeshTree()
             
@@ -582,24 +625,27 @@ class ReadMeshWindow(BaseWindow):
             
             
     # This function is called from the Child
-    def CreateTreeOutputItem(self, OriginEntity, EntityTypeID, EntityName, item_iid):
+    def CreateTreeOutputItem(self, origin_entity, entity_type_ID, entity_name, property_ID, item_iid):
         entity_type = ""
-        if EntityTypeID == 1: # Element
+        if entity_type_ID == 1: # Element
             entity_type = "Element"
-        elif EntityTypeID == 2: # Condition
+        elif entity_type_ID == 2: # Condition
             entity_type = "Condition"
         else:
             self.PlotCmdOutput("Wrong EntityTypeID", "red")
 
-        item_values = (EntityName, OriginEntity)
+        item_values = (entity_name, property_ID, origin_entity)
         
         # Check for uniqueness of the entry that should be created
         identical_entry_found = False
         for tree_item in self.tree_output.get_children():
             if self.tree_output.item(tree_item,"text") == entity_type:
-                if self.tree_output.item(tree_item,"values") == item_values:
-                    identical_entry_found = True
-                    break # Exit the loop, an identical entry was found, no need to check the other items
+                if tree_item != item_iid: # Don't check myself
+                    if (self.tree_output.item(tree_item,"values")[0] == entity_name and
+                        self.tree_output.item(tree_item,"values")[2] == origin_entity):
+                        # Property ID is not checked!!!
+                        identical_entry_found = True
+                        break # Exit the loop, an identical entry was found, no need to check the other items
         
         # Insert / modify the value, in case it does not  exist yet
         if identical_entry_found:
@@ -621,25 +667,27 @@ class EntrySelectionWindow(BaseWindow):
 
         self.item_iid = None
 
-        if len(arguments) == 3: # This is executed if an existing entity is modified
-            self._SetWidgetEntries(arguments[0], arguments[1])
-            self.item_iid = arguments[2]
+        if len(arguments) > 0: # This is executed if an existing entity is modified
+            self._SetWidgetEntries(arguments[0], arguments[1], arguments[2])
+            self.item_iid = arguments[3]
 
     
     def _InitializeWidgets(self):
         label_string = "Select Entity for: " + self.origin_entity
         tk.Label(self.window, text=label_string,
-            justify = tk.LEFT, relief=tk.RAISED,
-            padx = 20).grid(row=0, column=0, columnspan=2, sticky=tk.W+tk.E)
+            justify = tk.LEFT, relief=tk.GROOVE,
+            padx = 20).grid(row=0, column=0, columnspan=3, sticky=tk.W+tk.E)
 
         tk.Label(self.window, text="""Choose an entity type:""",
             justify = tk.LEFT,
-            padx = 20).grid(row=1, column=0, columnspan=2)
+            padx = 20, relief=tk.GROOVE).grid(row=1, column=0, columnspan=2)
         
         # Variable for RadioButtons
         self.rb_var = tk.IntVar()
         self.rb_var.set(1) # Choose "Element" as default
         self.entity_name = tk.StringVar()
+        self.property_ID = tk.StringVar()
+        self.property_ID.set("0") # Default Property ID is 0
 
         radio_button_1 = tk.Radiobutton(self.window, 
                     text="Element",
@@ -657,23 +705,30 @@ class EntrySelectionWindow(BaseWindow):
         radio_button_1.grid(sticky = tk.W, row=2, column=0, columnspan=2)
         radio_button_2.grid(sticky = tk.W, row=3, column=0, columnspan=2)
     
+        ttk.Separator(self.window, orient=tk.HORIZONTAL).grid(
+                    row=4, pady=15, columnspan=3, sticky=tk.W+tk.E)
         
         tk.Label(self.window, text="""Name of Entity:""",
             justify = tk.LEFT,
-            padx = 20).grid(row=4, column=0, columnspan=2)
-        entry_name=tk.Entry(self.window, textvariable=self.entity_name)
-        entry_name.grid(row=5, column=0, columnspan=2, sticky=tk.W+tk.E)
-        b = tk.Button(self.window, text="...", command=lambda: self.OpenChildWindow(self._CreateKratosEntitySelectionWindow))
-        b.grid(row=5, column=2)
+            padx = 20, relief=tk.GROOVE).grid(row=5, column=0, columnspan=2)
+        tk.Entry(self.window, textvariable=self.entity_name).grid(row=6, column=0, columnspan=2, sticky=tk.W+tk.E)
+        tk.Button(self.window, text="...", command=lambda: self.OpenChildWindow(self._CreateKratosEntitySelectionWindow)).grid(row=6, column=2)
+        
+        ttk.Separator(self.window, orient=tk.HORIZONTAL).grid(
+                    row=7, pady=15, columnspan=3, sticky=tk.W+tk.E)        
+        
+        tk.Label(self.window, text="""Property ID:""", justify = tk.LEFT,
+            padx = 20, relief=tk.GROOVE).grid(row=8, column=0, pady=(0,15))
+        tk.Entry(self.window, textvariable=self.property_ID).grid(row=8, column=1, pady=(0,15))
 
         b = tk.Button(self.window, text="Cancel", width=14, command=self.CloseWindow)
-        b.grid(row=8, column=0)
+        b.grid(row=9, column=0)
 
         b = tk.Button(self.window, text="Save and Close", width=14, command=self._SaveAndCloseWindow)
-        b.grid(row=8, column=1)
+        b.grid(row=9, column=1)
 
 
-    def _SetWidgetEntries(self, entity_type, entity_name):
+    def _SetWidgetEntries(self, entity_type, entity_name, property_ID):
         if entity_type == "Element":
             self.rb_var.set(1)
         elif entity_type == "Condition":
@@ -682,6 +737,8 @@ class EntrySelectionWindow(BaseWindow):
             self.rb_var.set(0)
         
         self.entity_name.set(entity_name)
+        
+        self.property_ID.set(property_ID)
 
     
     def _GetSelection(self):
@@ -699,13 +756,32 @@ class EntrySelectionWindow(BaseWindow):
     def _ValidateInput(self):
         valid_input = True
 
-        if not self.entity_name.get():
+        # Check Entity Name
+        if not self.entity_name.get(): # Field is empty
             valid_input = False
             self.PlotCmdOutput("Please enter an Entity Name", "red")
         else:
             if not isinstance(self.entity_name.get(), str):
                 valid_input = False
                 self.PlotCmdOutput("Entity name is not valid", "red")
+                
+        # Check Property ID
+        if not self.property_ID.get(): # Field is empty
+            valid_input = False
+            self.PlotCmdOutput("Please enter a Property ID", "red")
+        else:
+            prop_ID_entry_str = self.property_ID.get()
+            if prop_ID_entry_str.isdigit():
+                try:
+                    property_ID = int(prop_ID_entry_str)
+                    if property_ID < 0:
+                        valid_input = False
+                        self.PlotCmdOutput("Property ID must be > 0", "red")
+                except:
+                    self.PlotCmdOutput("Property ID is not valid, int-conversion failed", "red")
+            else:
+                valid_input = False
+                self.PlotCmdOutput("Property ID is not valid, it has to be an int", "red")
 
         return valid_input
 
@@ -716,7 +792,8 @@ class EntrySelectionWindow(BaseWindow):
               self.master.CreateTreeOutputItem(self.origin_entity,     # Original Entity Name (From Salome)
                                                self.rb_var.get(),      # Element of Condition
                                                self.entity_name.get(), # Name of Entity
-                                               self.item_iid) 
+                                               int(self.property_ID.get()), # Property ID
+                                               self.item_iid)          # Tree item iid, if existing
               self.CloseWindow()
 
 
@@ -756,3 +833,84 @@ class KratosEntitySelectionWindow(BaseWindow):
         entity = self.tree.item(item,"text")
         self.string_var.set(entity)
         self.CloseWindow()
+        
+        
+
+# This class provides a window for selecting files for the imported Converter-Scheme
+class FileSelectionWindow(BaseWindow):
+    def __init__(self, master, json_dict):
+        window = tk.Toplevel(master.GetWindow())
+        super().__init__(window, "Select Files", master)
+        self.json_dict = json_dict
+        self.file_names = sorted(json_dict.keys())
+        self.num_files = len(self.file_names)
+        self.entry_fields = []
+        
+        self._InitializeWidgets()
+
+    
+    def _InitializeWidgets(self):
+        tk.Label(self.window, text="""File list:""",
+            justify = tk.LEFT,
+            padx = 20, relief=tk.GROOVE).grid(row=1, column=0, columnspan=3)
+        
+        for i in range(self.num_files):
+            row_counter = i+2
+            tk.Label(self.window, text=self.file_names[i], justify = tk.LEFT,
+                     padx = 20, relief=tk.GROOVE).grid(row=row_counter, column=0, sticky=tk.W+tk.E)
+            
+            self.entry_fields.append(tk.Entry(self.window, width=90))
+            self.entry_fields[i].grid(row=row_counter, column=1, sticky=tk.W+tk.E)
+            
+            tk.Button(self.window, text="...", command=lambda i=i: self._SetFilePath(self.entry_fields[i])).grid(row=row_counter, column=2)
+
+        tk.Button(self.window, text="Cancel", width=14, command=self.CloseWindow).grid(row=self.num_files+2, column=0)
+        tk.Button(self.window, text="Save and Close", width=14, command=self._SaveAndCloseWindow).grid(row=self.num_files+2, column=1)
+
+
+    def _SetFilePath(self, entry_field):
+        file_path, valid_file = utils.GetFilePathOpen("dat")
+        
+        if valid_file:
+            entry_field.delete(0,"end")
+            entry_field.insert(0, file_path)
+        
+        utils.BringWindowToFront(self.window)
+
+
+    def _ValidateInput(self):
+        valid_input = True
+        
+        counter = 0
+        for entry_field in self.entry_fields:
+            file_name = self.file_names[counter]
+            if not entry_field.get():
+                valid_input = False
+                self.PlotCmdOutput("Please select a file for \"" + file_name + "\"", "red")
+                break # Input is not valid, no need to check the other entry fields
+            else:
+                if not utils.FileExists(entry_field.get()):
+                    valid_input = False
+                    self.PlotCmdOutput("Path for \"" + file_name + "\" is not valid", "red")
+            counter += 1
+
+        return valid_input
+
+
+    def _SaveAndCloseWindow(self):
+        if self._ValidateInput():
+            # pass stuff to Master
+            for file_name, entry_field in zip(self.file_names, self.entry_fields):
+                file_path = entry_field.get()
+                nodes_read, geom_entities_read = utils.ReadAndParseFile(file_path)
+                  
+                smp_info_dict = {}
+                smp_info_dict["smp_name"] = file_name
+                smp_info_dict["smp_file_name"] = file_name
+                smp_info_dict["smp_file_path"] = file_path
+                  
+                self.master.GetModelPart().AddMesh(smp_info_dict, self.json_dict[file_name], nodes_read, geom_entities_read)
+                  
+            self.master.UpdateMeshTree(self.json_dict)
+            self.master.SetUnsavedChangesExist()
+            self.CloseWindow()
