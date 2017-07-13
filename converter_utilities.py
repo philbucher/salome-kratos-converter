@@ -85,7 +85,8 @@ ELEMENTS = {
             "ShellThinElementCorotational3D3N",
             "ShellThickElementCorotational3D3N"
           ],
-      4 : [ "PreStressMembraneElement3D4N",
+      4 : [ "SmallDisplacementElement2D4N",
+            "PreStressMembraneElement3D4N",
             "ShellThinElementCorotational3D4N",
             "ShellThickElementCorotational3D4N"
           ],
@@ -118,11 +119,13 @@ CONDITIONS = {
           ]
   },
   "2_Structure" : {
-      2 : [
+      1 : [ "PointLoadCondition2D1N"
           ],
-      3 : [
+      2 : [ "LineLoadCondition2D2N"
           ],
-      4 : [ "SurfaceLoadCondition3D4N",
+      3 : [ "SurfaceLoadCondition3D3N"
+          ],
+      4 : [ "SurfaceLoadCondition3D4N"
           ]
   }
 }
