@@ -251,7 +251,7 @@ class GUIObject(BaseWindow): # This is the main Window
                 self.PlotCmdOutput("Opend the project", "green")
                 logging.info("Opened Project")
             except:
-                self.PlotCmdOutput("Opening project from file \"{}\" failed".format(file_name), "red")
+                self.PlotCmdOutput("Opening project from file \"{}\" failed".format(file_path), "red")
 
 
     def _SaveConverterProject(self, save_as):
@@ -308,7 +308,7 @@ class GUIObject(BaseWindow): # This is the main Window
                     
                         self.OpenChildWindow(self._CreateFileSelectionWindow, corrected_json)
             except:
-                self.PlotCmdOutput("Opening scheme from file \"{}\" failed".format(file_name), "red")
+                self.PlotCmdOutput("Opening scheme from file \"{}\" failed".format(file_path), "red")
 
 
     def _ExportConverterScheme(self):
