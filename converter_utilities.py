@@ -67,7 +67,7 @@ ELEMENTS = {
           ],
       3 : [ "Element2D3N"
           ],
-      4 : [ "Elemen3D4N"
+      4 : [ "Element3D4N"
           ]
   },
   "2_Structure" : {
@@ -88,6 +88,9 @@ ELEMENTS = {
       4 : [ "PreStressMembraneElement3D4N",
             "ShellThinElementCorotational3D4N",
             "ShellThickElementCorotational3D4N"
+          ],
+      8 : ["SmallDisplacementElement3D8N"
+
           ]
   }
 }
@@ -319,6 +322,16 @@ def CorrectMeshDict(mesh_dict):
     return corrected_mesh_dict
   
 
+def CorrectNodeListOrder(salome_node_list, salome_identifier):
+    # This function corrects the order in the node list because for
+    # some elements the nodal order is different btw SALOME and Kratos
+    if salome_identifier == 308: # Hexahedral
+        salome_node_list[1], salome_node_list[3] = salome_node_list[3], salome_node_list[1]
+        salome_node_list[5], salome_node_list[7] = salome_node_list[7], salome_node_list[5]
+
+    return salome_node_list
+
+
 def GetDictFromTree(tree):
     dictionary = {"entity_creation" : {}}
 
@@ -358,7 +371,11 @@ class GeometricEntitySalome:
     def __init__(self, salome_ID, salome_identifier, node_list):
         self.salome_ID = salome_ID
         self.salome_identifier = salome_identifier
-        self.node_list = node_list
+        self._SetNodeList(node_list)
+
+    def _SetNodeList(self, salome_node_list):
+        CorrectNodeListOrder(salome_node_list, self.salome_identifier)
+        self.node_list = salome_node_list
         
     def GetNodeList(self):
         return self.node_list
