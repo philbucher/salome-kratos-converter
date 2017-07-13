@@ -704,13 +704,13 @@ class EntrySelectionWindow(BaseWindow):
                     padx = 20, 
                     variable=self.rb_var, 
                     value=1,
-                    command=lambda: self.entity_name.set(""))
+                    command=self._ResetWidgetEntries)
         radio_button_2 = tk.Radiobutton(self.window, 
                     text="Condition",
                     padx = 20, 
                     variable=self.rb_var, 
                     value=2,
-                    command=lambda: self.entity_name.set(""))
+                    command=self._ResetWidgetEntries)
         
         radio_button_1.grid(sticky = tk.W, row=2, column=0, columnspan=2)
         radio_button_2.grid(sticky = tk.W, row=3, column=0, columnspan=2)
@@ -749,6 +749,11 @@ class EntrySelectionWindow(BaseWindow):
         self.entity_name.set(entity_name)
         
         self.property_ID.set(property_ID)
+
+
+    def _ResetWidgetEntries(self):
+        self.entity_name.set("")
+        self.property_ID.set("0")
 
     
     def _GetSelection(self):

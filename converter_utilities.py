@@ -18,7 +18,7 @@ Intended for non-commercial use in research
 
 ### TODO list ###
 # add geometrical information to the Kratos entities
-# Nodal Elements
+# Nodal Elements => ask Vicente
 # sort selection window by entities (nodes, elements, conditions)
 # initial directories
 
