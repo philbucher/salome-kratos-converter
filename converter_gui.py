@@ -248,6 +248,7 @@ class GUIObject(BaseWindow): # This is the main Window
             self.model_part.Deserialize(serialized_model_part_dict)
             self.UpdateMeshTree()
             self.PlotCmdOutput("Opend the project", "green")
+            logging.info("Opened Project")
 
 
     def _SaveConverterProject(self, save_as):
@@ -281,6 +282,7 @@ class GUIObject(BaseWindow): # This is the main Window
                 
                 self.PlotCmdOutput("Saved the project", "green")
                 self.unsaved_changes_exist = False
+                logging.info("Saved Project")
 
 
     def _ImportConverterScheme(self):

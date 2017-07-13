@@ -24,7 +24,7 @@ Intended for non-commercial use in research
 # Nodal Elements
 
 
-DEBUG = True          # Set this Variable to "True" for debugging
+DEBUG = False          # Set this Variable to "True" for debugging
 READABLE_MDPA = True  # Use this to get a nicely formatted mdpa file. Works in most cases, but files are larger (~20%) and mdpa writing takes slightly more time
 VERSION = 1.0
 
@@ -299,7 +299,6 @@ def DictKeyToInt(dictionary):
 def CorrectMeshDict(mesh_dict):
     # This function converts some keys from str back to int (caused by loading json files)
     corrected_mesh_dict = {}
-    print(mesh_dict)
     for key, val in mesh_dict.items():
         if key == "entity_creation":
             corrected_mesh_dict.update({"entity_creation" : DictKeyToInt(mesh_dict["entity_creation"])})
@@ -475,6 +474,7 @@ class MainModelPart:
 
     def Serialize(self):
         # This function serializes the ModelPart such that it can be saved in a json file
+        logging.debug("Serializing ModelPart")
         serialized_dict = {}
         for smp_name in sorted(self.sub_model_parts.keys()):
             smp = self.sub_model_parts[smp_name]
@@ -493,6 +493,8 @@ class MainModelPart:
                 self.sub_model_parts[smp_name].Deserialize(smp_name, serialized_dict[smp_name])
         
         self.mesh_read = True
+
+        logging.debug("Deserialized ModelPart")
 
 
     def _Assemble(self):
@@ -551,6 +553,7 @@ class MainModelPart:
         return sum([len(val) for val in self.conditions.values()])
     
     def WriteMesh(self, file):
+        start_time = time.time()
         logging.info("Writing Mesh")
         self._Assemble() # TODO only do this if sth has changed
         # Write Header
@@ -571,6 +574,8 @@ class MainModelPart:
         for smp_name in sorted(self.sub_model_parts.keys()):
             smp = self.sub_model_parts[smp_name]
             smp.WriteMesh(file)
+        
+        logging.info("Mesh writing time: " + "{:.2f}".format(time.time() - start_time) + " sec")
                 
         return True
             
@@ -688,8 +693,8 @@ class MeshSubmodelPart:
 
 
     def Serialize(self):
-        serialized_smp = {}
         logging.debug("Serializing " + self.smp_info_dict["smp_name"])
+        serialized_smp = {}
 
         serialized_smp["submodelpart_information"] = self.smp_info_dict
         serialized_smp["mesh_information"] = self.mesh_dict
