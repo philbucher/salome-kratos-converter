@@ -17,11 +17,10 @@ Intended for non-commercial use in research
 '''
 
 ### TODO list ###
-# sort selection window by entities (nodes, elements, conditions)
 # add geometrical information to the Kratos entities
-# initial directories
-# "// GUI group identifier:" in mdpa
 # Nodal Elements
+# sort selection window by entities (nodes, elements, conditions)
+# initial directories
 
 
 DEBUG = False          # Set this Variable to "True" for debugging
@@ -505,8 +504,8 @@ class MainModelPart:
             smp.Assemble()
             smp_nodes, smp_elements, smp_conditions = smp.GetMesh()
             self._AddNodes(smp_nodes)
-            self._AddElements(smp_elements)
-            self._AddConditions(smp_conditions)
+            self._AddElements(smp_name, smp_elements)
+            self._AddConditions(smp_name, smp_conditions)
         
 
     def _AddNodes(self, smp_nodes):
@@ -523,20 +522,12 @@ class MainModelPart:
                     if smp_nodes[node_ID][2] > self.max_node_coord_z: self.max_node_coord_z = smp_nodes[node_ID][2]
         
         
-    def _AddElements(self, smp_elements):
-        for element_name in sorted(smp_elements.keys()):
-            if element_name not in self.elements.keys():
-                self.elements[element_name] = []
-                                
-            self.elements[element_name].extend(smp_elements[element_name])
+    def _AddElements(self, smp_name, smp_elements):
+        self.elements[smp_name] = smp_elements
             
             
-    def _AddConditions(self, smp_conditions):
-        for condition_name in sorted(smp_conditions.keys()):
-            if condition_name not in self.conditions.keys():
-                self.conditions[condition_name] = []
-                                
-            self.conditions[condition_name].extend(smp_conditions[condition_name])
+    def _AddConditions(self, smp_name, smp_conditions):
+        self.conditions[smp_name] = smp_conditions
         
         
     def GetTreeItems(self):
@@ -546,12 +537,21 @@ class MainModelPart:
     def _NumberOfNodes(self):
         return len(self.nodes)
 
+
     def _NumberOfElements(self):
-        return sum([len(val) for val in self.elements.values()])
+        num_elements = 0
+        for smp in self.sub_model_parts.values():
+            num_elements += smp.NumberOfElements()
+        return num_elements
+
 
     def _NumberOfConditions(self):
-        return sum([len(val) for val in self.conditions.values()])
+        num_conditions = 0
+        for smp in self.sub_model_parts.values():
+            num_conditions += smp.NumberOfConditions()
+        return num_conditions
     
+
     def WriteMesh(self, file):
         start_time = time.time()
         logging.info("Writing Mesh")
@@ -621,14 +621,16 @@ class MainModelPart:
 
         logging.debug("Element Format String: " + str(format_str))
 
-        for name in sorted(list(self.elements.keys())):
-            file.write("Begin Elements " + name + "\n")
-            elements_by_name = self.elements[name]
-            for elem in elements_by_name:
-                file.write(elem.GetWriteLine(self.element_counter, format_str, space) + "\n")
-                self.element_counter += 1
-            
-            file.write("End Elements // " + name + "\n\n")
+        for smp_name in sorted(list(self.elements.keys())):
+            for element_name in sorted(list(self.elements[smp_name])):
+
+                file.write("Begin Elements " + element_name + " // " + smp_name + "\n")
+                elements_by_name = self.elements[smp_name][element_name]
+                for elem in elements_by_name:
+                    file.write(elem.GetWriteLine(self.element_counter, format_str, space) + "\n")
+                    self.element_counter += 1
+                
+                file.write("End Elements // " + element_name + "\n\n")        
         
         
     def _WriteConditions(self, file):
@@ -642,14 +644,16 @@ class MainModelPart:
 
         logging.debug("Condition Format String: " + str(format_str))
 
-        for name in sorted(list(self.conditions.keys())):
-            file.write("Begin Conditions " + name + "\n")
-            condition_by_name = self.conditions[name]
-            for cond in condition_by_name:
-                file.write(cond.GetWriteLine(self.condition_counter, format_str, space) + "\n")
-                self.condition_counter += 1
-            
-            file.write("End Conditions // " + name + "\n\n")
+        for smp_name in sorted(list(self.conditions.keys())):
+            for condition_name in sorted(list(self.conditions[smp_name])):
+
+                file.write("Begin Conditions " + condition_name + " // " + smp_name + "\n")
+                conditions_by_name = self.conditions[smp_name][condition_name]
+                for cond in conditions_by_name:
+                    file.write(cond.GetWriteLine(self.condition_counter, format_str, space) + "\n")
+                    self.condition_counter += 1
+                
+                file.write("End Conditions // " + condition_name + "\n\n")
     
 
     def _WriteMeshInfo(self, file):
@@ -839,13 +843,13 @@ class MeshSubmodelPart:
     def GetMeshInfoDict(self):
         return self.mesh_dict
 
-    def _NumberOfNodes(self):
+    def NumberOfNodes(self):
         return len(self.nodes)
 
-    def _NumberOfElements(self):
+    def NumberOfElements(self):
         return sum([len(val) for val in self.elements.values()])
 
-    def _NumberOfConditions(self):
+    def NumberOfConditions(self):
         return sum([len(val) for val in self.conditions.values()])
     
     
@@ -897,11 +901,12 @@ class MeshSubmodelPart:
             for cond in self.conditions[condition_name]:
                 file.write(space + space + str(cond.GetID()) + "\n")
             
-        file.write(space + "End SubModelPartConditions \n\n")
+        file.write(space + "End SubModelPartConditions \n")
+
 
     def WriteMeshInfo(self, file):
         if self.mesh_dict["write_smp"]: 
             file.write("// SubModelPart " + self.smp_info_dict["smp_name"] + "\n")
-            file.write("//   Number of Nodes: " + str(self._NumberOfNodes()) + "\n")
-            file.write("//   Number of Elements: " + str(self._NumberOfElements()) + "\n")
-            file.write("//   Number of Conditions: " + str(self._NumberOfConditions()) + "\n")
+            file.write("//   Number of Nodes: " + str(self.NumberOfNodes()) + "\n")
+            file.write("//   Number of Elements: " + str(self.NumberOfElements()) + "\n")
+            file.write("//   Number of Conditions: " + str(self.NumberOfConditions()) + "\n")
