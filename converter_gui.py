@@ -242,13 +242,16 @@ class GUIObject(BaseWindow): # This is the main Window
   
         if valid_file:
             serialized_model_part_dict = {}
-            with open(file_path, "r") as json_file:
-                serialized_model_part_dict = json.load(json_file)
+            try:
+                with open(file_path, "r") as json_file:
+                    serialized_model_part_dict = json.load(json_file)
 
-            self.model_part.Deserialize(serialized_model_part_dict)
-            self.UpdateMeshTree()
-            self.PlotCmdOutput("Opend the project", "green")
-            logging.info("Opened Project")
+                self.model_part.Deserialize(serialized_model_part_dict)
+                self.UpdateMeshTree()
+                self.PlotCmdOutput("Opend the project", "green")
+                logging.info("Opened Project")
+            except:
+                self.PlotCmdOutput("Opening project from file \"{}\" failed".format(file_name), "red")
 
 
     def _SaveConverterProject(self, save_as):
@@ -292,17 +295,20 @@ class GUIObject(BaseWindow): # This is the main Window
 
         if valid_file:
             json_dict = {}
-            with open(file_path, "r") as json_file:
-                json_dict = json.load(json_file)
-                if json_dict == {}:
-                    self.PlotCmdOutput("Nothing imported", "red")
-                else:
-                    corrected_json = {}
-                    for file_name in json_dict.keys():
-                        if file_name != "general":
-                            corrected_json.update({file_name : utils.CorrectMeshDict(json_dict[file_name])})
-                
-                    self.OpenChildWindow(self._CreateFileSelectionWindow, corrected_json)
+            try:
+                with open(file_path, "r") as json_file:
+                    json_dict = json.load(json_file)
+                    if json_dict == {}:
+                        self.PlotCmdOutput("Nothing imported", "red")
+                    else:
+                        corrected_json = {}
+                        for file_name in json_dict.keys():
+                            if file_name != "general":
+                                corrected_json.update({file_name : utils.CorrectMeshDict(json_dict[file_name])})
+                    
+                        self.OpenChildWindow(self._CreateFileSelectionWindow, corrected_json)
+            except:
+                self.PlotCmdOutput("Opening scheme from file \"{}\" failed".format(file_name), "red")
 
 
     def _ExportConverterScheme(self):
@@ -506,16 +512,18 @@ class ReadMeshWindow(BaseWindow):
             if self.master.GetModelPart().FileExists(file_name):
                 self.PlotCmdOutput("File was already read!", "red")
             else:
-                self.nodes_read, self.geom_entities_read = utils.ReadAndParseFile(file_path)
-                self._FillInputTree(self.geom_entities_read)
-                # TODO check if num_node > 0!
-                self.file_parsed = True
-                
-                self.file_name = file_name
-                self.file_path = file_path
-                
-                self.smp_name_var.set(file_name)
-                self.smp_path_var.set(file_path)
+                valid_file, self.nodes_read, self.geom_entities_read = utils.ReadAndParseFile(file_path)
+                if valid_file:
+                    self._FillInputTree(self.geom_entities_read)
+                    self.file_parsed = True
+                    
+                    self.file_name = file_name
+                    self.file_path = file_path
+                    
+                    self.smp_name_var.set(file_name)
+                    self.smp_path_var.set(file_path)
+                else:
+                    self.PlotCmdOutput("File is not valid", "red")
             
 
 
@@ -902,17 +910,23 @@ class FileSelectionWindow(BaseWindow):
     def _SaveAndCloseWindow(self):
         if self._ValidateInput():
             # pass stuff to Master
+            all_files_valid = True
             for file_name, entry_field in zip(self.file_names, self.entry_fields):
                 file_path = entry_field.get()
-                nodes_read, geom_entities_read = utils.ReadAndParseFile(file_path)
-                  
-                smp_info_dict = {}
-                smp_info_dict["smp_name"] = file_name
-                smp_info_dict["smp_file_name"] = file_name
-                smp_info_dict["smp_file_path"] = file_path
-                  
-                self.master.GetModelPart().AddMesh(smp_info_dict, self.json_dict[file_name], nodes_read, geom_entities_read)
-                  
-            self.master.UpdateMeshTree(self.json_dict)
-            self.master.SetUnsavedChangesExist()
-            self.CloseWindow()
+                valid_file, nodes_read, geom_entities_read = utils.ReadAndParseFile(file_path)
+                if valid_file:  
+                    smp_info_dict = {}
+                    smp_info_dict["smp_name"] = file_name
+                    smp_info_dict["smp_file_name"] = file_name
+                    smp_info_dict["smp_file_path"] = file_path
+                    
+                    self.master.GetModelPart().AddMesh(smp_info_dict, self.json_dict[file_name], nodes_read, geom_entities_read)
+                else:
+                    self.master.GetModelPart().Reset()
+                    all_files_valid = False
+                    self.PlotCmdOutput("File for \"{}\" is not valid".format(file_name), "red")
+                    break # no need to check the other files
+
+            if all_files_valid:  
+                self.master.UpdateMeshTree(self.json_dict)
+                self.CloseWindow()

@@ -22,7 +22,6 @@ Intended for non-commercial use in research
 # sort selection window by entities (nodes, elements, conditions)
 # initial directories
 
-
 DEBUG = False          # Set this Variable to "True" for debugging
 READABLE_MDPA = True  # Use this to get a nicely formatted mdpa file. Works in most cases, but files are larger (~20%) and mdpa writing takes slightly more time
 VERSION = 1.0
@@ -127,42 +126,55 @@ CONDITIONS = {
 
 
 def ReadAndParseFile(file_path):
-    with open(file_path,"r") as f:
-        lines = f.readlines()
-        # .dat header
-        line = lines[0].split()
-        num_nodes = int(line[0])
-        # num_elems = int(line[1])
-        # nodes = lines[1:num_nodes+1]
-        
-        nodes = {}
-        for line in lines[1:num_nodes+1]:
-            words = line.split()
-            salome_ID = int(words[0])
-            coords = [float(words[1]), float(words[2]), float(words[3])] # X, Y, Z
-            nodes.update({salome_ID : coords})
-        
-        geom_entities = {}
+    valid_file = True
+    nodes = {}
+    geom_entities = {}
 
-        # Read Geometric Objects (Lines, Triangles, Quads, ...)
-        for line in lines[num_nodes+1:]:
-            words = line.split()
-            salome_ID = int(words[0])
-            salome_identifier = int(words[1]) # get the salome identifier
-            node_list = []
-            for i in range(2, len(words)):
-                node_list.append(int(words[i]))
+    try:
+        with open(file_path,"r") as f:
+            lines = f.readlines()
+            # .dat header
+            line = lines[0].split()
+            num_nodes = int(line[0])
+            # num_elems = int(line[1])
+            # nodes = lines[1:num_nodes+1]
+
+            if num_nodes == 0:
+                logging.error('No nodes in file \"{}\"'.format(file_path))
+                valid_file = False
             
-            geom_entity = GeometricEntitySalome(salome_ID,
-                                          salome_identifier,
-                                          node_list)
-            
-            if salome_identifier not in geom_entities: # geom entities with this identifier are already existing # TODO don't I have to use .key() here?
-                geom_entities[salome_identifier] = []
+            if valid_file:
+                
+                for line in lines[1:num_nodes+1]:
+                    words = line.split()
+                    salome_ID = int(words[0])
+                    coords = [float(words[1]), float(words[2]), float(words[3])] # X, Y, Z
+                    nodes.update({salome_ID : coords})
+                
+                geom_entities = {}
 
-            geom_entities[salome_identifier].append(geom_entity)
+                # Read Geometric Objects (Lines, Triangles, Quads, ...)
+                for line in lines[num_nodes+1:]:
+                    words = line.split()
+                    salome_ID = int(words[0])
+                    salome_identifier = int(words[1]) # get the salome identifier
+                    node_list = []
+                    for i in range(2, len(words)):
+                        node_list.append(int(words[i]))
+                    
+                    geom_entity = GeometricEntitySalome(salome_ID,
+                                                salome_identifier,
+                                                node_list)
+                    
+                    if salome_identifier not in geom_entities: # geom entities with this identifier are already existing # TODO don't I have to use .key() here?
+                        geom_entities[salome_identifier] = []
 
-        return nodes, geom_entities
+                    geom_entities[salome_identifier].append(geom_entity)
+    except:
+        logging.error('Reading File \"{}\" failed!'.format(file_path))
+        valid_file = False
+
+    return valid_file, nodes, geom_entities
 
 # Functions related to Window
 def BringWindowToFront(window):
