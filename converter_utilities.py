@@ -19,7 +19,6 @@ Intended for non-commercial use in research
 ### TODO list ###
 # Nodal Elements => ask Vicente
 # sort selection window by entities (nodes, elements, conditions)
-# initial directories
 
 DEBUG = False          # Set this Variable to "True" for debugging
 LOG_TIMING = True
@@ -67,7 +66,7 @@ ELEMENTS = {
         ],
         304 : [ 
             "Element3D4N"
-        ]
+        ],
         308 : [ 
             "Element3D8N"
         ],
@@ -255,7 +254,6 @@ def GetFilePathOpen(FileType, name=""):
         file_path = tk.filedialog.askopenfilename(title="Open file" + name,filetypes=[("converter files","*" + conv_project_file_ending)])
     elif (FileType == conv_scheme_file_ending):
         file_path = tk.filedialog.askopenfilename(title="Open file" + name,filetypes=[("converter files","*" + conv_scheme_file_ending)])
-        # file_path = tk.filedialog.askopenfilename(initialdir='/home/philippb', title="Open file",filetypes=[("converter files","*" + conv_file_ending)])
     else:
         print("Unsupported FileType") # TODO make messagebox
     
@@ -520,15 +518,29 @@ class MainModelPart:
         self._Initialize()
     
     
-    def FileExists(self, file_name):
-        # TODO check against path, name, or both? Or even allow it with a warning?
-        # TODO modify such that it checks against the file_name and not the smp_name
-        file_exists = False
+    def SubModelPartNameExists(self, smp_name):
+        smp_exists = False
         
-        if file_name in self.sub_model_parts.keys():
-            file_exists = True
+        if smp_name in self.sub_model_parts.keys():
+            smp_exists = True
             
-        return file_exists
+        return smp_exists
+
+    def FileNameExists(self, file_name):
+        file_name_exists = False
+        for smp in self.sub_model_parts.values():
+            if file_name == smp.GetFileName():
+                file_name_exists = True
+                
+        return file_name_exists
+
+    def FilePathExists(self, file_path):
+        file_path_exists = False
+        for smp in self.sub_model_parts.values():
+            if file_path == smp.GetFilePath():
+                file_path_exists = True
+                
+        return file_path_exists
     
     
     def AssembleMeshInfoDict(self):
@@ -952,7 +964,13 @@ class MeshSubmodelPart:
 
     def NumberOfConditions(self):
         return sum([len(val) for val in self.conditions.values()])
+
+    def GetFileName(self):
+        return self.smp_info_dict["smp_file_name"]
     
+    def GetFilePath(self):
+        return self.smp_info_dict["smp_file_path"]
+
     
     def WriteMesh(self, file):
         # Write Header

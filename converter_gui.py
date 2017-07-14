@@ -485,7 +485,7 @@ class ReadMeshWindow(BaseWindow):
         self.tree_output.heading("col_entity_name", text="Entity Name")
         self.tree_output.heading("col_property_ID", text="Property ID")
         self.tree_output.heading("col_origin_entity", text="Origin Entity")
-        self.tree_output.column("col_entity_name", anchor=tk.CENTER)
+        self.tree_output.column("col_entity_name", anchor=tk.W, width=300)
         self.tree_output.column("col_property_ID", anchor=tk.CENTER)
         self.tree_output.column("col_origin_entity", anchor=tk.CENTER)
         self.tree_output.grid(row=6, sticky=tk.E, column=1, padx=15, pady=(0,15))
@@ -513,22 +513,19 @@ class ReadMeshWindow(BaseWindow):
             self.tree_output.delete(*self.tree_output.get_children())
 
             file_name = utils.GetFileName(file_path)
-            
-            if self.master.GetModelPart().FileExists(file_name):
-                self.PlotCmdOutput("File was already read!", "red")
+
+            valid_file, self.nodes_read, self.geom_entities_read = utils.ReadAndParseFile(file_path)
+            if valid_file:
+                self._FillInputTree(self.geom_entities_read)
+                self.file_parsed = True
+                
+                self.file_name = file_name
+                self.file_path = file_path
+                
+                self.smp_name_var.set(file_name)
+                self.smp_path_var.set(file_path)
             else:
-                valid_file, self.nodes_read, self.geom_entities_read = utils.ReadAndParseFile(file_path)
-                if valid_file:
-                    self._FillInputTree(self.geom_entities_read)
-                    self.file_parsed = True
-                    
-                    self.file_name = file_name
-                    self.file_path = file_path
-                    
-                    self.smp_name_var.set(file_name)
-                    self.smp_path_var.set(file_path)
-                else:
-                    self.PlotCmdOutput("File is not valid", "red")
+                self.PlotCmdOutput("File is not valid", "red")
             
 
     def _FillInputTree(self, geom_entities_read):
@@ -604,10 +601,18 @@ class ReadMeshWindow(BaseWindow):
             if not isinstance(self.smp_name_var.get(), str):
                 valid_input = False
                 self.PlotCmdOutput("SubModelPart name is not valid", "red")
+                
             if self.old_smp_name != self.smp_name_var.get():
-                if self.master.GetModelPart().FileExists(self.smp_name_var.get()):
+                if self.master.GetModelPart().SubModelPartNameExists(self.smp_name_var.get()):
                     self.PlotCmdOutput("SubModelPart name exists already!", "red")
                     valid_input = False
+
+            if (self.master.GetModelPart().FileNameExists(self.file_name) or 
+                self.master.GetModelPart().FilePathExists(self.file_path)):
+                result = messagebox.askquestion("Warning", "This file might have been read already, continue?", icon='warning')
+                if result == 'no':
+                    valid_input = False
+                    utils.BringWindowToFront(self.window)
 
         return valid_input
 
