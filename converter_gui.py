@@ -23,6 +23,7 @@ from tkinter import messagebox
 from tkinter import ttk
 import json
 import logging
+import time
 
 # Project imports
 import converter_utilities as utils
@@ -243,12 +244,14 @@ class GUIObject(BaseWindow): # This is the main Window
         if valid_file:
             serialized_model_part_dict = {}
             try:
+                start_time = time.time()
                 with open(file_path, "r") as json_file:
                     serialized_model_part_dict = json.load(json_file)
 
                 self.model_part.Deserialize(serialized_model_part_dict)
                 self.UpdateMeshTree()
-                self.PlotCmdOutput("Opend the project", "green")
+                utils.LogTiming("Open Project", start_time)
+                self.PlotCmdOutput("Opened the project", "green")
                 logging.info("Opened Project")
             except:
                 self.PlotCmdOutput("Opening project from file \"{}\" failed".format(file_path), "red")
@@ -271,6 +274,7 @@ class GUIObject(BaseWindow): # This is the main Window
             if self.save_file_path == "":
                 self.PlotCmdOutput("File was not saved", "red")
             else:
+                start_time = time.time()
                 serialized_model_part_dict = self.model_part.Serialize()
                 
                 # Add general information to file                
@@ -283,6 +287,7 @@ class GUIObject(BaseWindow): # This is the main Window
                     else:
                         json.dump(serialized_model_part_dict, save_file)
                 
+                utils.LogTiming("Save Project", start_time)
                 self.PlotCmdOutput("Saved the project", "green")
                 self.unsaved_changes_exist = False
                 logging.info("Saved Project")
@@ -526,21 +531,20 @@ class ReadMeshWindow(BaseWindow):
                     self.PlotCmdOutput("File is not valid", "red")
             
 
-
     def _FillInputTree(self, geom_entities_read):
         self.tree_input.delete(*self.tree_input.get_children())
         self.tree_output.delete(*self.tree_output.get_children())
         
-        self.tree_input.insert("", "end", text="Nodes")
+        self.tree_input.insert("", "end", text="Nodes", values=utils.NODE_IDENTIFIER, tags="clickable")
         self.tree_output.insert("", "end", text="Nodes", tags="Node")
 
         # Keys are in format identifier_name
         if geom_entities_read: # check if geom entities are present
             sorted_keys = sorted(list(geom_entities_read.keys()))
 
-            for key in sorted_keys:
-                label = utils.GetEntityType(key)
-                self.tree_input.insert("", "end", text=label, tags="clickable")
+            for salome_identifier in sorted_keys:
+                label = utils.GetEntityType(salome_identifier)
+                self.tree_input.insert("", "end", text=label, value=salome_identifier, tags="clickable")
             
             
     def _FillOutputTree(self, smp_dict):
@@ -574,19 +578,20 @@ class ReadMeshWindow(BaseWindow):
 
 
     # Create Child Window
-    def _CreateEntrySelectionWindow(self, event):
+    def _CreateEntrySelectionWindow(self, event): # TODO use utils function
         item = self.tree_input.identify('item', event.x, event.y)
-        origin_entity = self.tree_input.item(item,"text")
-        return EntrySelectionWindow(self, origin_entity) # Is only called if Item has tag "clickable"
+        salome_identifier = int(self.tree_input.item(item,"values")[0])
+        return EntrySelectionWindow(self, salome_identifier) # Is only called if Item has tag "clickable"
 
 
     # Create Child Window
     def _CreateEntrySelectionWindowEditItem(self, item):
         entity_type = self.tree_output.item(item,"text")
         entity_name = self.tree_output.item(item,"values")[0]
-        origin_entity = self.tree_output.item(item,"values")[2]
         property_ID = self.tree_output.item(item,"values")[1]
-        return EntrySelectionWindow(self, origin_entity, [entity_type, entity_name, property_ID, item]) #Is only called if Item has tag "modifyable"
+        origin_entity = self.tree_output.item(item,"values")[2]
+        salome_identifier = utils.GetSalomeIdentifier(origin_entity)
+        return EntrySelectionWindow(self, salome_identifier, [entity_type, entity_name, property_ID, item]) #Is only called if Item has tag "modifyable"
 
 
     def _ValidateInput(self):
@@ -668,11 +673,11 @@ class ReadMeshWindow(BaseWindow):
 # This class provides a window where one can select what Kratos entities
 # one wants to create from Salome entities
 class EntrySelectionWindow(BaseWindow):
-    def __init__(self, master, origin_entity, arguments=[]):
+    def __init__(self, master, salome_identifier, arguments=[]):
         window = tk.Toplevel(master.GetWindow())
         super().__init__(window, "Select Type of Entity", master)
         
-        self.origin_entity = origin_entity
+        self.salome_identifier = salome_identifier
         self._InitializeWidgets()
 
         self.item_iid = None
@@ -683,7 +688,7 @@ class EntrySelectionWindow(BaseWindow):
 
     
     def _InitializeWidgets(self):
-        label_string = "Select Entity for: " + self.origin_entity
+        label_string = "Select Entity for: " + utils.GetEntityType(self.salome_identifier)
         tk.Label(self.window, text=label_string,
             justify = tk.LEFT, relief=tk.GROOVE,
             padx = 20).grid(row=0, column=0, columnspan=3, sticky=tk.W+tk.E)
@@ -765,7 +770,7 @@ class EntrySelectionWindow(BaseWindow):
 
     # Create Child Window
     def _CreateKratosEntitySelectionWindow(self):
-        return KratosEntitySelectionWindow(self, self.entity_name, self._GetSelection(), utils.GetNumberOfNodes(self.origin_entity))
+        return KratosEntitySelectionWindow(self, self.entity_name, self._GetSelection(), self.salome_identifier)
 
 
     def _ValidateInput(self):
@@ -804,7 +809,7 @@ class EntrySelectionWindow(BaseWindow):
     def _SaveAndCloseWindow(self):
         if self._ValidateInput():
               # pass stuff to Master
-              self.master.CreateTreeOutputItem(self.origin_entity,     # Original Entity Name (From Salome)
+              self.master.CreateTreeOutputItem(utils.GetEntityType(self.salome_identifier),     # Original Entity Name (From Salome)
                                                self.rb_var.get(),      # Element of Condition
                                                self.entity_name.get(), # Name of Entity
                                                int(self.property_ID.get()), # Property ID
@@ -877,14 +882,14 @@ class FileSelectionWindow(BaseWindow):
             self.entry_fields.append(tk.Entry(self.window, width=90))
             self.entry_fields[i].grid(row=row_counter, column=1, sticky=tk.W+tk.E)
             
-            tk.Button(self.window, text="...", command=lambda i=i: self._SetFilePath(self.entry_fields[i])).grid(row=row_counter, column=2)
+            tk.Button(self.window, text="...", command=lambda i=i: self._SetFilePath(self.entry_fields[i], self.file_names[i])).grid(row=row_counter, column=2)
 
         tk.Button(self.window, text="Cancel", width=14, command=self.CloseWindow).grid(row=self.num_files+2, column=0)
         tk.Button(self.window, text="Save and Close", width=14, command=self._SaveAndCloseWindow).grid(row=self.num_files+2, column=1)
 
 
-    def _SetFilePath(self, entry_field):
-        file_path, valid_file = utils.GetFilePathOpen("dat")
+    def _SetFilePath(self, entry_field, origin_file_name):
+        file_path, valid_file = utils.GetFilePathOpen("dat", origin_file_name)
         
         if valid_file:
             entry_field.delete(0,"end")

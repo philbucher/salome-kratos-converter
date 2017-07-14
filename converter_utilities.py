@@ -17,12 +17,12 @@ Intended for non-commercial use in research
 '''
 
 ### TODO list ###
-# add geometrical information to the Kratos entities
 # Nodal Elements => ask Vicente
 # sort selection window by entities (nodes, elements, conditions)
 # initial directories
 
 DEBUG = False          # Set this Variable to "True" for debugging
+LOG_TIMING = True
 READABLE_MDPA = True  # Use this to get a nicely formatted mdpa file. Works in most cases, but files are larger (~20%) and mdpa writing takes slightly more time
 VERSION = 1.0
 
@@ -42,7 +42,9 @@ else:
 conv_scheme_file_ending = ".conv.scheme.json"
 conv_project_file_ending = ".conv.proj.json"
 
+NODE_IDENTIFIER = 101
 SALOME_IDENTIFIERS = {
+        NODE_IDENTIFIER : "Node", # This was made by me, it does not come from SALOME! Cannot start with 0!
         102 : "Line",
         203 : "Triangle",
         204 : "Quadrilateral",
@@ -53,44 +55,42 @@ SALOME_IDENTIFIERS = {
 
 ELEMENTS = {
   "0_Generic" : {
-      2 : [ "Element2D2N",
+      102 : [ "Element2D2N",
 
           ],
-      3 : [ "Element2D3N",
+      203 : [ "Element2D3N",
             "Element3D3N"
           ],
-      4 : [ "Element3D4N"
+      304 : [ "Element3D4N"
           ]
   },
   "1_Fluid" : {
-      2 : [
+      203 : [ "Element2D3N"
           ],
-      3 : [ "Element2D3N"
-          ],
-      4 : [ "Element3D4N"
+      304 : [ "Element3D4N"
           ]
   },
   "2_Structure" : {
-      1 : [ "NodalConcentratedElement2D1N",
+      NODE_IDENTIFIER : [ "NodalConcentratedElement2D1N",
             "NodalConcentratedDampedElement2D1N",
             "NodalConcentratedElement3D1N",
             "NodalConcentratedDampedElement3D1N"
           ],
-      2 : [ "TrussElement3D2N",
+      102 : [ "TrussElement3D2N",
             "TrussLinearElement3D2N",
             "CrBeamElement3D2N",
             "CrLinearBeamElement3D2N"
           ],
-      3 : [ "PreStressMembraneElement3D3N",
+      203 : [ "PreStressMembraneElement3D3N",
             "ShellThinElementCorotational3D3N",
             "ShellThickElementCorotational3D3N"
           ],
-      4 : [ "SmallDisplacementElement2D4N",
+      204 : [ "SmallDisplacementElement2D4N",
             "PreStressMembraneElement3D4N",
             "ShellThinElementCorotational3D4N",
             "ShellThickElementCorotational3D4N"
           ],
-      8 : ["SmallDisplacementElement3D8N"
+      308 : ["SmallDisplacementElement3D8N"
 
           ]
   }
@@ -99,33 +99,31 @@ ELEMENTS = {
 
 CONDITIONS = {
   "0_Generic" : {
-      1 : [ "PointCondition2D1N",
-            "PointCondition3D1N"
+      NODE_IDENTIFIER : [ "PointCondition2D1N",
+                 "PointCondition3D1N"
           ],
-      2 : [ "LineCondition2D2N",
+      102 : [ "LineCondition2D2N",
             "LineCondition3D2N",
           ],
-      3 : [ "SurfaceCondition3D3N"            
+      203 : [ "SurfaceCondition3D3N"            
           ],
-      4 : [ "SurfaceCondition3D4N"
+      204 : [ "SurfaceCondition3D4N"
           ]
   },
   "1_Fluid" : {
-      2 : [ "WallCondition2D2N"
+      102 : [ "WallCondition2D2N"
           ],
-      3 : [ "WallCondition3D3N"
-          ],
-      4 : [
+      203 : [ "WallCondition3D3N"
           ]
   },
   "2_Structure" : {
-      1 : [ "PointLoadCondition2D1N"
+      NODE_IDENTIFIER : [ "PointLoadCondition2D1N"
           ],
-      2 : [ "LineLoadCondition2D2N"
+      102 : [ "LineLoadCondition2D2N"
           ],
-      3 : [ "SurfaceLoadCondition3D3N"
+      203 : [ "SurfaceLoadCondition3D3N"
           ],
-      4 : [ "SurfaceLoadCondition3D4N"
+      204 : [ "SurfaceLoadCondition3D4N"
           ]
   }
 }
@@ -205,15 +203,17 @@ def CloseWindow(window, master):
 
 
 # Functions related to Files
-def GetFilePathOpen(FileType):
+def GetFilePathOpen(FileType, name=""):
     file_path = ""
     valid_file = False
+    if name is not "":
+        name = " for: " + name
     if (FileType == "dat"):
-        file_path = tk.filedialog.askopenfilename(title="Open file",filetypes=[("salome mesh","*.dat")])
+        file_path = tk.filedialog.askopenfilename(title="Open file" + name,filetypes=[("salome mesh","*.dat")])
     elif (FileType == conv_project_file_ending):
-        file_path = tk.filedialog.askopenfilename(title="Open file",filetypes=[("converter files","*" + conv_project_file_ending)])
+        file_path = tk.filedialog.askopenfilename(title="Open file" + name,filetypes=[("converter files","*" + conv_project_file_ending)])
     elif (FileType == conv_scheme_file_ending):
-        file_path = tk.filedialog.askopenfilename(title="Open file",filetypes=[("converter files","*" + conv_scheme_file_ending)])
+        file_path = tk.filedialog.askopenfilename(title="Open file" + name,filetypes=[("converter files","*" + conv_scheme_file_ending)])
         # file_path = tk.filedialog.askopenfilename(initialdir='/home/philippb', title="Open file",filetypes=[("converter files","*" + conv_file_ending)])
     else:
         print("Unsupported FileType") # TODO make messagebox
@@ -293,8 +293,8 @@ def GetEntityType(SalomeIdentifier):
     return str(SalomeIdentifier) + "_" + post_string
 
 
-def GetNumberOfNodes(String):
-    return int(String[1:3])
+def GetSalomeIdentifier(origin_entity):
+    return int(origin_entity.split("_")[0])
 
 
 def GetTreeItem(tree, event):
@@ -343,7 +343,7 @@ def GetDictFromTree(tree):
             item_values = tree.item(child,"values")
             element_name = item_values[0]
             property_ID = item_values[1]
-            salome_identifier = int(item_values[2].split("_")[0])
+            salome_identifier = GetSalomeIdentifier(item_values[2])
             
             AddEntryToDict(dictionary, salome_identifier, "Element", element_name, property_ID)
 
@@ -351,7 +351,7 @@ def GetDictFromTree(tree):
             item_values = tree.item(child,"values")
             condition_name = item_values[0]
             property_ID = item_values[1]
-            salome_identifier = int(item_values[2].split("_")[0])
+            salome_identifier = GetSalomeIdentifier(item_values[2])
             
             AddEntryToDict(dictionary, salome_identifier, "Condition", condition_name, property_ID)
     
@@ -368,6 +368,10 @@ def AddEntryToDict(json_dict, salome_identifier, entity_type, entity_name, prope
     json_dict["entity_creation"][salome_identifier][entity_type].update({entity_name: property_ID})
 
 
+def LogTiming(log_info, start_time):
+    if LOG_TIMING:
+        logging.info(" [TIMING] \"" + log_info + "\" {:.2f}".format(time.time() - start_time) + " sec")
+
 
 
 class GeometricEntitySalome:
@@ -376,12 +380,15 @@ class GeometricEntitySalome:
         self.salome_identifier = salome_identifier
         self._SetNodeList(node_list)
 
+
     def _SetNodeList(self, salome_node_list):
         CorrectNodeListOrder(salome_node_list, self.salome_identifier)
         self.node_list = salome_node_list
         
+
     def GetNodeList(self):
         return self.node_list
+
 
     def Serialize(self):
         serialized_entity = [self.salome_ID, self.salome_identifier, self.node_list]
@@ -389,37 +396,46 @@ class GeometricEntitySalome:
         
         
     
-class GeometricalObject:
+class KratosEntity:
     def __init__(self, salome_entity, name, property_ID):
-        self.origin_entity = salome_entity
+        self.is_node = False
+        if isinstance(salome_entity, int):
+            self.is_node = True
+
+        self.origin_entity = salome_entity # int for Node, GeometricEntitySalome for Element/Condition
         self.name = name        
         self.new_ID = -1
         self.property_ID = property_ID
     
+
     def GetID(self):
         if self.new_ID == -1:
             raise Exception("No new ID has been assiged")
         return self.new_ID
     
+
     def GetWriteLine(self, ID, format_str, space):
         self.new_ID = ID
         # "0" is the Property Placeholder
         line = format_str.format(str(self.new_ID), str(self.property_ID))
 
-        for node in self.origin_entity.GetNodeList():
-            line += space + str(node)
+        if self.is_node:
+            line += space + str(self.origin_entity)
+        else:
+            for node in self.origin_entity.GetNodeList():
+                line += space + str(node)
         
         return line
         
         
     
-class Element(GeometricalObject):
+class Element(KratosEntity):
     def __init__(self, salome_entity, name, property_ID):
         super().__init__(salome_entity, name, property_ID)
         
         
         
-class Condition(GeometricalObject):
+class Condition(KratosEntity):
     def __init__(self, salome_entity, name, property_ID):
         super().__init__(salome_entity, name, property_ID)
         
@@ -530,6 +546,8 @@ class MainModelPart:
 
     def _Assemble(self):
         # TODO Check if this was done before! (same for the submodelparts)
+        start_time = time.time()
+        logging.info("Assembling Mesh")
         self._InitializeMesh()
         for smp_name in sorted(self.sub_model_parts.keys()):
             smp = self.sub_model_parts[smp_name]
@@ -538,6 +556,8 @@ class MainModelPart:
             self._AddNodes(smp_nodes)
             self._AddElements(smp_name, smp_elements)
             self._AddConditions(smp_name, smp_conditions)
+        
+        LogTiming("Mesh assembling time", start_time)
         
 
     def _AddNodes(self, smp_nodes):
@@ -585,9 +605,11 @@ class MainModelPart:
     
 
     def WriteMesh(self, file):
+        self._Assemble() # TODO only do this if sth has changed
+        
         start_time = time.time()
         logging.info("Writing Mesh")
-        self._Assemble() # TODO only do this if sth has changed
+
         # Write Header
         self._WriteMeshInfo(file)
         file.write("\nBegin ModelPartData\n//  VARIABLE_NAME value\nEnd ModelPartData\n\n")
@@ -607,7 +629,7 @@ class MainModelPart:
             smp = self.sub_model_parts[smp_name]
             smp.WriteMesh(file)
         
-        logging.info("Mesh writing time: " + "{:.2f}".format(time.time() - start_time) + " sec")
+        LogTiming("Mesh writing time", start_time)
                 
         return True
             
@@ -826,15 +848,18 @@ class MeshSubmodelPart:
         
     
     def _AddNodes(self):
-        self.nodes = self.nodes_read        
+        self.nodes = self.nodes_read 
         
         
     def _AddElements(self):
         self.elements.clear()
 
         for salome_identifier in self.mesh_dict["entity_creation"].keys():
-            geom_entities = self.geom_entities_read[salome_identifier]
-            
+            if salome_identifier == NODE_IDENTIFIER:
+                entities = self.nodes
+            else:
+                entities = self.geom_entities_read[salome_identifier]
+                
             if "Element" in self.mesh_dict["entity_creation"][salome_identifier]:
                 element_dict = self.mesh_dict["entity_creation"][salome_identifier]["Element"]
                 element_list = element_dict.keys()
@@ -844,7 +869,7 @@ class MeshSubmodelPart:
                     
                     property_ID = element_dict[element_name]
             
-                    for entity in geom_entities:
+                    for entity in entities: # Node IDs or GeometricEntities
                         self.elements[element_name].append(Element(entity, element_name, property_ID))
         
         
@@ -852,7 +877,10 @@ class MeshSubmodelPart:
         self.conditions.clear()
 
         for salome_identifier in self.mesh_dict["entity_creation"].keys():
-            geom_entities = self.geom_entities_read[salome_identifier]
+            if salome_identifier == NODE_IDENTIFIER:
+                entities = self.nodes
+            else:
+                entities = self.geom_entities_read[salome_identifier]
             
             if "Condition" in self.mesh_dict["entity_creation"][salome_identifier]:
                 condition_dict = self.mesh_dict["entity_creation"][salome_identifier]["Condition"]
@@ -863,7 +891,7 @@ class MeshSubmodelPart:
                     
                     property_ID = condition_dict[condition_name]
                         
-                    for entity in geom_entities:
+                    for entity in entities: # Node IDs or GeometricEntities
                         self.conditions[condition_name].append(Condition(entity, condition_name, property_ID))        
     
     def GetMesh(self):
