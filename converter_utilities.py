@@ -42,9 +42,9 @@ else:
 conv_scheme_file_ending = ".conv.scheme.json"
 conv_project_file_ending = ".conv.proj.json"
 
-NODE_IDENTIFIER = 101
+NODE_IDENTIFIER = 101 # This was made by me, it does not come from SALOME! Cannot start with 0!
 SALOME_IDENTIFIERS = {
-        NODE_IDENTIFIER : "Node", # This was made by me, it does not come from SALOME! Cannot start with 0!
+        NODE_IDENTIFIER : "Node", 
         102 : "Line",
         203 : "Triangle",
         204 : "Quadrilateral",
@@ -54,78 +54,119 @@ SALOME_IDENTIFIERS = {
 
 
 ELEMENTS = {
-  "0_Generic" : {
-      102 : [ "Element2D2N",
-
-          ],
-      203 : [ "Element2D3N",
+    "0_Generic" : {
+        102 : [ 
+            "Element2D2N",
+        ],
+        203 : [ 
+            "Element2D3N",
             "Element3D3N"
-          ],
-      304 : [ "Element3D4N"
-          ]
-  },
-  "1_Fluid" : {
-      203 : [ "Element2D3N"
-          ],
-      304 : [ "Element3D4N"
-          ]
-  },
-  "2_Structure" : {
-      NODE_IDENTIFIER : [ "NodalConcentratedElement2D1N",
+        ],
+        204 : [ 
+            "Element2D4N"
+        ],
+        304 : [ 
+            "Element3D4N"
+        ]
+        308 : [ 
+            "Element3D8N"
+        ],
+    },
+    "1_Fluid" : {
+        203 : [ 
+            "Element2D3N"
+        ],
+        304 : [ 
+            "Element3D4N"
+        ]
+    },
+    "2_Structure" : {
+        NODE_IDENTIFIER : [ 
+            "NodalConcentratedElement2D1N",
             "NodalConcentratedDampedElement2D1N",
+
             "NodalConcentratedElement3D1N",
             "NodalConcentratedDampedElement3D1N"
-          ],
-      102 : [ "TrussElement3D2N",
+        ],
+        102 : [ 
+            "TrussElement3D2N",
             "TrussLinearElement3D2N",
-            "CrBeamElement3D2N",
-            "CrLinearBeamElement3D2N"
-          ],
-      203 : [ "PreStressMembraneElement3D3N",
-            "ShellThinElementCorotational3D3N",
-            "ShellThickElementCorotational3D3N"
-          ],
-      204 : [ "SmallDisplacementElement2D4N",
-            "PreStressMembraneElement3D4N",
-            "ShellThinElementCorotational3D4N",
-            "ShellThickElementCorotational3D4N"
-          ],
-      308 : ["SmallDisplacementElement3D8N"
 
-          ]
-  }
+            "CrBeamElement3D2N",
+            "CrLinearBeamElement3D2N",
+
+            "SpringDamperElement3D2N"
+        ],
+        203 : [ 
+            "SmallDisplacementElement2D3N",
+
+            "PreStressMembraneElement3D3N",
+
+            "ShellThinElement3D3N"
+            #"ShellThickElementCorotational3D3N" # Peter
+        ],
+        204 : [ 
+            "SmallDisplacementElement2D4N",
+
+            "PreStressMembraneElement3D4N",
+
+            #"ShellThinElementCorotational3D4N", # Peter
+            "ShellThickElement3D4N"
+        ],
+        304 : [
+            "SmallDisplacementElement3D4N"
+        ],
+        308 : [
+            "SmallDisplacementElement3D8N"
+        ]
+    }
 }
   
 
 CONDITIONS = {
-  "0_Generic" : {
-      NODE_IDENTIFIER : [ "PointCondition2D1N",
-                 "PointCondition3D1N"
-          ],
-      102 : [ "LineCondition2D2N",
-            "LineCondition3D2N",
-          ],
-      203 : [ "SurfaceCondition3D3N"            
-          ],
-      204 : [ "SurfaceCondition3D4N"
-          ]
-  },
-  "1_Fluid" : {
-      102 : [ "WallCondition2D2N"
-          ],
-      203 : [ "WallCondition3D3N"
-          ]
-  },
-  "2_Structure" : {
-      NODE_IDENTIFIER : [ "PointLoadCondition2D1N"
-          ],
-      102 : [ "LineLoadCondition2D2N"
-          ],
-      203 : [ "SurfaceLoadCondition3D3N"
-          ],
-      204 : [ "SurfaceLoadCondition3D4N"
-          ]
-  }
+    "0_Generic" : {
+        NODE_IDENTIFIER : [ 
+            "PointCondition2D1N",
+            "PointCondition3D1N"
+        ],
+        102 : [  
+            "LineCondition2D2N",
+            "LineCondition3D2N"
+        ],
+        203 : [ 
+            "SurfaceCondition3D3N"            
+        ],
+        204 : [ 
+            "SurfaceCondition3D4N"
+        ]
+    },
+    "1_Fluid" : {
+        102 : [ 
+            "WallCondition2D2N"
+        ],
+        203 : [ 
+            "WallCondition3D3N"
+        ]
+    },
+    "2_Structure" : {
+        NODE_IDENTIFIER : [ 
+            "PointLoadCondition2D1N",
+            "PointLoadCondition2D1N",
+
+            "PointMomentCondition3D1N",
+
+            "PointTorqueCondition3D1N"
+        ],
+        102 : [ 
+            "LineLoadCondition2D2N"
+        ],
+        203 : [ 
+            "SurfaceLoadCondition3D3N"
+        ],
+        204 : [ 
+            "SurfaceLoadCondition3D4N"
+        ]
+    }
 }
 
 
