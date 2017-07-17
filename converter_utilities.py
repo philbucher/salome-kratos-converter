@@ -98,6 +98,8 @@ ELEMENTS = {
         ],
         203 : [ 
             "SmallDisplacementElement2D3N",
+            "TotalLagrangianElement2D3N",
+            "UpdatedLagrangianElement2D3N",
 
             "PreStressMembraneElement3D3N",
 
@@ -106,6 +108,8 @@ ELEMENTS = {
         ],
         204 : [ 
             "SmallDisplacementElement2D4N",
+            "TotalLagrangianElement2D4N",
+            "UpdatedLagrangianElement2D4N",
 
             "PreStressMembraneElement3D4N",
 
@@ -113,10 +117,16 @@ ELEMENTS = {
             "ShellThickElement3D4N"
         ],
         304 : [
-            "SmallDisplacementElement3D4N"
+            "SmallDisplacementElement3D4N",
+            "TotalLagrangianElement3D4N",
+            "UpdatedLagrangianElement3D4N"
+
         ],
         308 : [
-            "SmallDisplacementElement3D8N"
+            "SmallDisplacementElement3D8N",
+            "TotalLagrangianElement3D8N",
+            "UpdatedLagrangianElement3D8N"
+
         ]
     }
 }

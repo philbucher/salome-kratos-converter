@@ -225,6 +225,7 @@ class GUIObject(BaseWindow): # This is the main Window
     def _ShowAboutInfo(self):
         messagebox.showinfo("Information", "Salome-Kratos Converter\n" +
                                     "Author: Philipp Bucher\n" +
+                                    "Website: https://github.com/philbucher/salome-kratos-converter\n" +
                                     "Version: " + str(utils.VERSION))
 
     def _NewProject(self):
