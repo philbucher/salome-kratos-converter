@@ -20,7 +20,7 @@ Intended for non-commercial use in research
 # Nodal Elements => ask Vicente
 # sort selection window by entities (nodes, elements, conditions)
 
-DEBUG = True          # Set this Variable to "True" for debugging
+DEBUG = False          # Set this Variable to "True" for debugging
 LOG_TIMING = True
 READABLE_MDPA = True  # Use this to get a nicely formatted mdpa file. Works in most cases, but files are larger (~20%) and mdpa writing takes slightly more time
 VERSION = 1.0
