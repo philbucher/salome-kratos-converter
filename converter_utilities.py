@@ -20,7 +20,7 @@ Intended for non-commercial use in research
 # Nodal Elements => ask Vicente
 # sort selection window by entities (nodes, elements, conditions)
 
-DEBUG = False          # Set this Variable to "True" for debugging
+DEBUG = True          # Set this Variable to "True" for debugging
 LOG_TIMING = True
 READABLE_MDPA = True  # Use this to get a nicely formatted mdpa file. Works in most cases, but files are larger (~20%) and mdpa writing takes slightly more time
 VERSION = 1.0
@@ -439,6 +439,10 @@ class GeometricEntitySalome:
         return self.node_list
 
 
+    def GetID(self):
+        return self.salome_ID
+
+
     def Serialize(self):
         serialized_entity = [self.salome_ID, self.salome_identifier, self.node_list]
         return serialized_entity
@@ -473,6 +477,8 @@ class KratosEntity:
         else:
             for node in self.origin_entity.GetNodeList():
                 line += space + str(node)
+            if DEBUG:
+                line += " // " + str(self.origin_entity.GetID()) # add the origin ID
         
         return line
         
