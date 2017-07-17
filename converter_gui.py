@@ -608,12 +608,13 @@ class ReadMeshWindow(BaseWindow):
                     self.PlotCmdOutput("SubModelPart name exists already!", "red")
                     valid_input = False
 
-            if (self.master.GetModelPart().FileNameExists(self.file_name) or 
-                self.master.GetModelPart().FilePathExists(self.file_path)):
-                result = messagebox.askquestion("Warning", "This file might have been read already, continue?", icon='warning')
-                if result == 'no':
-                    valid_input = False
-                    utils.BringWindowToFront(self.window)
+            if not self.edited_mesh:
+                if (self.master.GetModelPart().FileNameExists(self.file_name) or 
+                    self.master.GetModelPart().FilePathExists(self.file_path)):
+                    result = messagebox.askquestion("Warning", "This file might have been read already, continue?", icon='warning')
+                    if result == 'no':
+                        valid_input = False
+                        utils.BringWindowToFront(self.window)
 
         return valid_input
 
