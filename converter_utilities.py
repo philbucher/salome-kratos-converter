@@ -17,7 +17,6 @@ Intended for non-commercial use in research
 '''
 
 ### TODO list ###
-# Nodal Elements => ask Vicente
 # sort selection window by entities (nodes, elements, conditions)
 
 DEBUG = False          # Set this Variable to "True" for debugging
@@ -477,6 +476,7 @@ class KratosEntity:
         else:
             for node in self.origin_entity.GetNodeList():
                 line += space + str(node)
+                
             if DEBUG:
                 line += " // " + str(self.origin_entity.GetID()) # add the origin ID
         
