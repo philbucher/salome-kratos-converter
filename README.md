@@ -45,7 +45,7 @@ Check out the **Examples** Folder to see how the Converter can be used.
 * Every Entry can be edited by _double-clicking_ on it
 * Every Entry can be deleted with _delete_
 * Cases can be saved and loaded
-* Commonly used shortcuts such are supported:
+* Commonly used shortcuts are supported:
     * _Ctrl - n_ : New Project
     * _Ctrl - o_ : Open Project
     * _Ctrl - s_ : Save Project
