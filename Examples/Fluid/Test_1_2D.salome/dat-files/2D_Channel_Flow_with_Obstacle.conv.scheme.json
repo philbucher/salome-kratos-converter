@@ -1,0 +1,67 @@
+{
+    "domain": {
+        "entity_creation": {
+            "203": {
+                "Element": {
+                    "Element2D3N": "1"
+                }
+            }
+        },
+        "write_smp": 1
+    },
+    "general": {
+        "Date": "Wed Jul 19 18:03:17 2017",
+        "OperatingSystem": "linux",
+        "Version": 1.0
+    },
+    "inlet": {
+        "entity_creation": {
+            "102": {
+                "Condition": {
+                    "WallCondition2D2N": "0"
+                }
+            }
+        },
+        "write_smp": 1
+    },
+    "outlet": {
+        "entity_creation": {
+            "102": {
+                "Condition": {
+                    "WallCondition2D2N": "0"
+                }
+            }
+        },
+        "write_smp": 1
+    },
+    "sky": {
+        "entity_creation": {
+            "102": {
+                "Condition": {
+                    "WallCondition2D2N": "0"
+                }
+            }
+        },
+        "write_smp": 1
+    },
+    "structure": {
+        "entity_creation": {
+            "102": {
+                "Condition": {
+                    "WallCondition2D2N": "0"
+                }
+            }
+        },
+        "write_smp": 1
+    },
+    "wall": {
+        "entity_creation": {
+            "102": {
+                "Condition": {
+                    "WallCondition2D2N": "0"
+                }
+            }
+        },
+        "write_smp": 1
+    }
+}
