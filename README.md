@@ -10,14 +10,16 @@
 ```
 This is a small tool to create mdpa-files form SALOME dat-files.
 
-It does/can **NOT** replace GiD!
+It does/can **NOT** replace GiD! You still have to create a case in GiD and then exchange the *.mdpa-file.
 
-# Usage
-## In SALOME
+
+
+## Usage
+### In SALOME
 1. Create a case in SALOME, including the mesh
 2. Create a SubMesh for each SubModelPart (e.g. Inlet, Dirichlet-BC, ...)
 3. Export the Mesh and each SubMesh to a *.dat-file
-## In the Converter
+### In the Converter
 1. Launch the Converter with `python3 converter_salome_kratos.py`
 2. Read each *.dat-file with the **Read Mesh** Button
     * You are offered a selection of entities that is present in the *.dat-file
@@ -28,10 +30,13 @@ It does/can **NOT** replace GiD!
         * Property ID (legacy, currently only needed for Fluid cases)
 3. After reading every mesh file, create the *.mdpa-file with the **Write MDPA** Button
 
-## Mesh Refinement
+### Mesh Refinement
 If you have a set of files on which you want to apply the same operations (e.g. Mesh Refinement), then you can export a "Converter Scheme" from an existing case.
 
 If you import this scheme, you will be asked to provide a set of files on which the same operations are applied.
+
+### Examples
+Check out the **Examples** Folder to see how the Converter can be used.
 
 
 ## Additional Information:
@@ -47,6 +52,8 @@ If you import this scheme, you will be asked to provide a set of files on which 
     * _Ctrl - r_ : Read Mesh
     * _Ctrl - i_ : Import Converter Scheme
     * _Ctrl - e_ : Export Converter Scheme
+* If you want to create Nodal entites (e.g. _NodalConcentratedElement_ or _PointCondition_), create and export a group of Nodes in SALOME. Read this file in the same way and _double-click_ on _Nodes_ to select what you want to assign.
+
 
 ## Enhanced Functionalities:
 At the beginning of the file `converter_utilities.py`, the user can select more advanced options:
