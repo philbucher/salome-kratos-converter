@@ -1,0 +1,113 @@
+{
+    "problem_data"                     : {
+        "problem_name"    : "Test_1_3D",
+        "model_part_name" : "MainModelPart",
+        "domain_size"     : 3,
+        "parallel_type"   : "OpenMP",
+        "echo_level"      : 0,
+        "start_time"      : 0.0,
+        "end_time"        : 5
+    },
+    "output_configuration"             : {
+        "result_file_configuration" : {
+            "gidpost_flags"       : {
+                "GiDPostMode"           : "GiD_PostBinary",
+                "WriteDeformedMeshFlag" : "WriteDeformed",
+                "WriteConditionsFlag"   : "WriteConditions",
+                "MultiFileFlag"         : "SingleFile"
+            },
+            "file_label"          : "time",
+            "output_control_type" : "time",
+            "output_frequency"    : 1.0,
+            "body_output"         : true,
+            "node_output"         : false,
+            "skin_output"         : false,
+            "plane_output"        : [],
+            "nodal_results"       : ["VELOCITY","PRESSURE"],
+            "gauss_point_results" : []
+        },
+        "point_data_configuration"  : []
+    },
+    "restart_options"                  : {
+        "SaveRestart"      : "False",
+        "RestartFrequency" : 0,
+        "LoadRestart"      : "False",
+        "Restart_Step"     : 0
+    },
+    "solver_settings"                  : {
+        "solver_type"                  : "Monolithic",
+        "model_import_settings"        : {
+            "input_type"     : "mdpa",
+            "input_filename" : "Test_1_3D_salome"
+        },
+        "echo_level"                   : 0,
+        "compute_reactions"            : false,
+        "consider_periodic_conditions" : false,
+        "reform_dofs_at_each_step"     : false,
+        "alpha"                        : -0.3,
+        "dynamic_tau"                  : 0.001,
+        "oss_switch"                   : 0,
+        "maximum_iterations"           : 10,
+        "relative_velocity_tolerance"  : 0.001,
+        "absolute_velocity_tolerance"  : 1e-5,
+        "relative_pressure_tolerance"  : 0.001,
+        "absolute_pressure_tolerance"  : 1e-5,
+        "volume_model_part_name"       : "domain",
+        "skin_parts"                   : ["inlet","outlet","wall"],
+        "no_skin_parts"                : [],
+        "time_stepping"                : {
+            "automatic_time_step" : false,
+            "time_step"           : 0.01
+        }
+    },
+    "initial_conditions_process_list"  : [],
+    "boundary_conditions_process_list" : [{
+        "python_module" : "apply_inlet_process",
+        "kratos_module" : "KratosMultiphysics.FluidDynamicsApplication",
+        "help"          : [],
+        "process_name"  : "ApplyInletProcess",
+        "Parameters"    : {
+            "mesh_id"         : 0,
+            "model_part_name" : "inlet",
+            "variable_name"   : "VELOCITY",
+            "modulus"         : 1.0,
+            "direction"       : "automatic_inwards_normal",
+            "interval"        : [0.0,"End"]
+        }
+    },{
+        "python_module" : "apply_outlet_process",
+        "kratos_module" : "KratosMultiphysics.FluidDynamicsApplication",
+        "help"          : [],
+        "process_name"  : "ApplyOutletProcess",
+        "Parameters"    : {
+            "mesh_id"            : 0,
+            "model_part_name"    : "outlet",
+            "variable_name"      : "PRESSURE",
+            "constrained"        : true,
+            "value"              : 0.0,
+            "hydrostatic_outlet" : false,
+            "h_top"              : 0.0
+        }
+    },{
+        "python_module" : "apply_noslip_process",
+        "kratos_module" : "KratosMultiphysics.FluidDynamicsApplication",
+        "process_name"  : "ApplyNoSlipProcess",
+        "Parameters"    : {
+            "mesh_id"         : 0,
+            "model_part_name" : "wall"
+        }
+    }],
+    "gravity"                          : [{
+        "python_module" : "process_factory",
+        "kratos_module" : "KratosMultiphysics",
+        "process_name"  : "ApplyConstantVectorValueProcess",
+        "Parameters"    : {
+            "mesh_id"         : 0,
+            "model_part_name" : "domain",
+            "variable_name"   : "BODY_FORCE",
+            "modulus"         : 0.0,
+            "direction"       : [0.0,-1.0,0.0]
+        }
+    }],
+    "auxiliar_process_list"            : []
+}

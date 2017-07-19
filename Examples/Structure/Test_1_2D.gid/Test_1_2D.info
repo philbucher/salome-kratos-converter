@@ -1,0 +1,121 @@
+ |  /           |             
+ ' /   __| _` | __|  _ \   __|
+ . \  |   (   | |   (   |\__ \ 
+_|\_\_|  \__,_|\__|\___/ ____/
+           Multi-Physics 5.0.0-fd5a890
+     KRATOS   ___|  |                   |                   |               
+            \___ \  __|  __| |   |  __| __| |   |  __| _` | |               
+                  | |   |    |   | (    |   |   | |   (   | |               
+            _____/ \__|_|   \__,_|\___|\__|\__,_|_|  \__,_|_| MECHANICS     
+Initializing KratosExternalSolversApplication... 
+  [Reading Nodes    : 105 nodes read]
+  [Reading Elements : 160 elements read] [Type: SmallDisplacementElement2D3N]
+  [Reading Conditions : 5 conditions read] [Type: PointLoadCondition2D1N]
+  [Total Lines Read : 627]
+Importing    KratosStructuralMechanicsApplication
+Importing    KratosExternalSolversApplication
+Thu Jul 13 16:56:16 2017
+::[MechanicalSolver]:: Construction finished
+::[StaticMechanicalSolver]:: Construction finished
+::[MechanicalSolver]:: Variables ADDED
+::[MechanicalSolver]:: Importing model part.
+    Reading model part from file: /home/philippb/Documents/SALOME_Kratos_Testing/Structure/Test_1_2D.gid/Test_1_2D.mdpa
+    Finished reading model part from mdpa file.
+Computing model part:
+-computing_domain- model part
+    Number of tables : 0
+    Number of sub model parts : 0
+
+    Mesh 0 : 
+        Number of Nodes      : 105
+        Number of Properties : 1
+        Number of Elements   : 160
+        Number of Conditions : 5
+
+
+finished reading materials
+    Constitutive law was successfully imported.
+-Structure- model part
+    Buffer Size : 2
+    Number of tables : 0
+    Number of sub model parts : 6
+    Current solution step index : 0
+    DOMAIN_SIZE : 2
+    TIME : 0
+    STEP : 0
+    DELTA_TIME : 0
+    IS_RESTARTED : 0
+
+    Mesh 0 : 
+        Number of Nodes      : 105
+        Number of Properties : 2
+        Number of Elements   : 160
+        Number of Conditions : 5
+
+    -computing_domain- model part
+        Number of tables : 0
+        Number of sub model parts : 0
+
+        Mesh 0 : 
+            Number of Nodes      : 105
+            Number of Properties : 2
+            Number of Elements   : 160
+            Number of Conditions : 5
+    -LinePressure2D_neumann- model part
+        Number of tables : 0
+        Number of sub model parts : 0
+
+        Mesh 0 : 
+            Number of Nodes      : 5
+            Number of Properties : 0
+            Number of Elements   : 0
+            Number of Conditions : 5
+    -PointLoad2D_neumann- model part
+        Number of tables : 0
+        Number of sub model parts : 0
+
+        Mesh 0 : 
+            Number of Nodes      : 5
+            Number of Properties : 0
+            Number of Elements   : 0
+            Number of Conditions : 5
+    -LineLoad2D_neumann- model part
+        Number of tables : 0
+        Number of sub model parts : 0
+
+        Mesh 0 : 
+            Number of Nodes      : 5
+            Number of Properties : 0
+            Number of Elements   : 0
+            Number of Conditions : 5
+    -DISPLACEMENT_dirichlet- model part
+        Number of tables : 0
+        Number of sub model parts : 0
+
+        Mesh 0 : 
+            Number of Nodes      : 5
+            Number of Properties : 0
+            Number of Elements   : 0
+            Number of Conditions : 0
+    -Parts_domain- model part
+        Number of tables : 0
+        Number of sub model parts : 0
+
+        Mesh 0 : 
+            Number of Nodes      : 105
+            Number of Properties : 1
+            Number of Elements   : 160
+            Number of Conditions : 0
+
+::[MechanicalSolver]:: Finished importing model part.
+::[MechanicalSolver]:: DOF's ADDED
+::[StaticMechanicalSolver]:: Initializing ...
+::[MechanicalSolver]:: Initializing ...
+::[MechanicalSolver]:: Finished initialization.
+::[StaticMechanicalSolver]:: Finished initialization.
+[]
+::[KSM Simulation]:: Analysis -END- 
+ 
+::[KSM Simulation]:: [ Computing Time = (0.03  seconds process time) ( 0.03  seconds wall time) ]
+Thu Jul 13 16:56:16 2017
+KRATOS TERMINATED CORRECTLY

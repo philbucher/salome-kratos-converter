@@ -1,0 +1,37 @@
+BeginZE /home/philippb/Documents/SALOME_Kratos_Testing/Fluid/Test_1_3D.gid/Test_1_3D.vv
+   x -430.943817138671875 466.8408203125
+   y 388.293304443359375 -393.7467041015625
+   z -785.85858154296875 286.21636962890625
+   e 276.385406494140625
+   v 0.692605556263388156 -0.455848845543338599 0.222659803053514099
+   r 0.512759188658827303
+   m 0.48524889349937439 -0.859788596630096436 -0.159050539135932922 0 -0.403105169534683228 -0.0585596896708011627 -0.913278162479400635 0 0.775912225246429443 0.507281303405761719 -0.375001251697540283 0 0 0 0 1
+   c 50.1480789184570312 49.9375 249.821121215820312
+   pd 0
+   pno 0
+   pfo 0
+   pf 4
+   pv 0
+   NowUse 1
+   DrawingType 0
+   LightVector 90 90 150 0
+   OGLShadow(UseShadows) 0
+   OGLShadow(RenderMode) RenderNice
+   OGLShadow(ShadowBias) -0.002
+   OGLShadow(AmbientShadows) 1
+   OGLShadow(UseFBO) 0
+   OGLShadow(FBOSize) 2048
+   OGLShadow(DimmedLightFactor) 0.02
+   OGLStereo(UseStereo) 0
+   OGLStereo(RelativeEyeDistance) 1
+   OGLStereo(FlipEyes) 0
+   OGLStereo(StereoMode) AnaglyphColors
+   OGLStereo(EyeDistance) 0.075
+   OGLStereo(LeftEyeDistance) 1 0 0 1
+   OGLStereo(RightEyeDistance) 0 1 1 1
+EndZE /home/philippb/Documents/SALOME_Kratos_Testing/Fluid/Test_1_3D.gid/Test_1_3D.vv
+
+BeginMirror
+   Mirror 0 Angle 0.0 AngleFake -15.0 SizeFactor 2.0 HeightOffset 0.25 Color #d9e5f24d Backlight Off EdgeStyle No Type Scene DrawMode Mirror
+EndMirror
+
