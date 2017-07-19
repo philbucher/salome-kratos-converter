@@ -25,13 +25,13 @@ It does/can **NOT** replace GiD!
     * Now you can select 
         * Entity Type
         * Name of Entity (Names available in Kratos can be selected from a list)
-        * Property ID (legacy, atm only needed for Fluid cases)
+        * Property ID (legacy, currently only needed for Fluid cases)
 3. After reading every mesh file, create the *.mdpa-file with the **Write MDPA** Button
 
 ## Mesh Refinement
 If you have a set of files on which you want to apply the same operations (e.g. Mesh Refinement), then you can export a "Converter Scheme" from an existing case.
 
-If you import this scheme, you will be asked to provide a set of files on which the same operations should be applied.
+If you import this scheme, you will be asked to provide a set of files on which the same operations are applied.
 
 
 ## Additional Information:
@@ -47,3 +47,12 @@ If you import this scheme, you will be asked to provide a set of files on which 
     * _Ctrl - r_ : Read Mesh
     * _Ctrl - i_ : Import Converter Scheme
     * _Ctrl - e_ : Export Converter Scheme
+
+## Enhanced Functionalities:
+At the beginning of the file `converter_utilities.py`, the user can select more advanced options:
+* DEBUG: This flag enables debugging, which includes:
+    * DEBUG output in logging
+    * In the mdpa-file, each geometrical entity (Elements and Conditions) is appended with the ID of the SALOME entity it was created with
+    * When a project is saved, the json-file is formatted in a readable way
+* LOG_TIMING: This flag enables timing output in logging
+* READABLE_MDPA: Use this to get a nicely formatted mdpa file. Works in most cases, but files are larger (~20%) and mdpa writing takes slightly more time 
