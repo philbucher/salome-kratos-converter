@@ -21,7 +21,10 @@ import tkinter as tk
 from tkinter import messagebox
 #from tkinter import filedialog
 from tkinter import ttk
-import json
+try: # ujson is much faster in file saving and a bit faster in file opening
+    import ujson as json
+except ImportError:
+    import json
 import logging
 import time
 
