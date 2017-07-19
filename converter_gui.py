@@ -21,11 +21,13 @@ import tkinter as tk
 from tkinter import messagebox
 #from tkinter import filedialog
 from tkinter import ttk
+import logging
 try: # ujson is much faster in file saving and a bit faster in file opening. Install in Ubuntu with: "sudo apt-get install python3-ujson"
     import ujson as json
+    logging.info("Using ujson-module")
 except ImportError:
     import json
-import logging
+    logging.info("Using json-module")
 import time
 
 # Project imports
