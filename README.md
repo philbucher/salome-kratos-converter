@@ -35,6 +35,8 @@ If you have a set of files on which you want to apply the same operations (e.g. 
 
 If you import this scheme, you will be asked to provide a set of files on which the same operations are applied.
 
+An example can be found under `/Examples/Fluid/Test_1_2D.salome/dat-files/`
+
 ### Examples
 Check out the **Examples** Folder to see how the Converter can be used.
 
