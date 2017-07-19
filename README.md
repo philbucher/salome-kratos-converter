@@ -8,7 +8,7 @@
  | (__/ _ \ ' \ V / -_) '_|  _/ -_) '_|                           
   \___\___/_||_\_/\___|_|  \__\___|_|  
 ```
-This is a small tool to create mdpa-files form SALOME dat-files.
+This is a small tool to create mdpa-files form SALOME dat-files. It requires the `tkinter` module of Python.
 
 It does/can **NOT** replace GiD! You still have to create a case in GiD and then exchange the *.mdpa-file.
 
