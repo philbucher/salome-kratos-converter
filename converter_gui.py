@@ -101,7 +101,6 @@ class GUIObject(BaseWindow): # This is the main Window
 
         self.window.bind("<Control-n>", lambda event: self._NewProject())
         self.window.bind("<Control-o>", lambda event: self._OpenConverterProject())
-        self.window.bind("<Control-w>", lambda event: self._CloseProject())
         self.window.bind("<Control-s>", lambda event: self._SaveConverterProject(False))
         self.window.bind("<Control-Shift-S>", lambda event: self._SaveConverterProject(True))
         self.window.unbind("<Escape>") # Overwritting the base class behaviour
@@ -886,7 +885,7 @@ class FileSelectionWindow(BaseWindow):
             tk.Label(self.window, text=self.file_names[i], justify = tk.LEFT,
                      padx = 20, relief=tk.GROOVE).grid(row=row_counter, column=0, sticky=tk.W+tk.E)
             
-            self.entry_fields.append(tk.Entry(self.window, width=90))
+            self.entry_fields.append(tk.Entry(self.window, width=120))
             self.entry_fields[i].grid(row=row_counter, column=1, sticky=tk.W+tk.E)
             
             tk.Button(self.window, text="...", command=lambda i=i: self._SetFilePath(self.entry_fields[i], self.file_names[i])).grid(row=row_counter, column=2)
