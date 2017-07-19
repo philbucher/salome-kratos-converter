@@ -31,7 +31,7 @@ It does/can **NOT** replace GiD!
 ## Mesh Refinement
 If you have a set of files on which you want to apply the same operations (e.g. Mesh Refinement), then you can export a "Converter Scheme" from an existing case.
 
-If you import this scheme, you will be asked to provide a set of files
+If you import this scheme, you will be asked to provide a set of files on which the same operations should be applied.
 
 
 ## Additional Information:
