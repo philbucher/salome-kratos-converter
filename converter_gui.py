@@ -23,9 +23,11 @@ from tkinter import messagebox
 from tkinter import ttk
 import logging
 try: # ujson is much faster in file saving and a bit faster in file opening. Install in Ubuntu with: "sudo apt-get install python3-ujson"
-    import ujson as json
+    import ujson as fast_json
+    import json
     logging.info("Using ujson-module")
 except ImportError:
+    import json as fast_json
     import json
     logging.info("Using json-module")
 import time
@@ -251,7 +253,7 @@ class GUIObject(BaseWindow): # This is the main Window
             try:
                 start_time = time.time()
                 with open(file_path, "r") as json_file:
-                    serialized_model_part_dict = json.load(json_file)
+                    serialized_model_part_dict = fast_json.load(json_file)
 
                 self.model_part.Deserialize(serialized_model_part_dict)
                 self.UpdateMeshTree()
@@ -290,7 +292,7 @@ class GUIObject(BaseWindow): # This is the main Window
                         # Do this only for debugging, file size is much larger!   
                         json.dump(serialized_model_part_dict, save_file, sort_keys = True, indent = 4) 
                     else:
-                        json.dump(serialized_model_part_dict, save_file)
+                        fast_json.dump(serialized_model_part_dict, save_file)
                 
                 utils.LogTiming("Save Project", start_time)
                 self.PlotCmdOutput("Saved the project", "green")
@@ -339,7 +341,7 @@ class GUIObject(BaseWindow): # This is the main Window
                 with open(input_save_file_path, "w") as save_file:
                     json.dump(model_part_dict, save_file, sort_keys = True, indent = 4)
                 
-                self.PlotCmdOutput("Exported the file", "green")
+                self.PlotCmdOutput("Exported the Scheme", "green")
 
 
     def _CreateFileSelectionWindow(self, json_dict):
