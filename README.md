@@ -50,7 +50,7 @@ Check out the **Examples** Folder to see how the Converter can be used.
     * _Ctrl - o_ : Open Project
     * _Ctrl - s_ : Save Project
     * _Ctrl - Shift - s_ : Save Project as
-    * _Ecs_ : Close Window (except main window)
+    * _Esc_ : Close Window (except main window)
     * _Ctrl - r_ : Read Mesh
     * _Ctrl - i_ : Import Converter Scheme
     * _Ctrl - e_ : Export Converter Scheme
