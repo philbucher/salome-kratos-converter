@@ -22,13 +22,14 @@ Intended for non-commercial use in research
 DEBUG = False          # Set this Variable to "True" for debugging
 LOG_TIMING = True
 READABLE_MDPA = True  # Use this to get a nicely formatted mdpa file. Works in most cases, but files are larger (~20%) and mdpa writing takes slightly more time
-VERSION = 1.0
+VERSION = 1.1
+PREV_USED_DIR = "."
 
 # Python imports
 import sys
 import tkinter as tk
 from tkinter import filedialog
-from os.path import splitext, basename, isfile
+from os.path import splitext, basename, dirname, isfile, isdir
 import time
 import logging
 
@@ -49,7 +50,6 @@ SALOME_IDENTIFIERS = {
         304 : "Tetrahedral",
         308 : "Hexahedral"        
 }
-
 
 ELEMENTS = {
     "0_Generic" : {
@@ -102,8 +102,8 @@ ELEMENTS = {
 
             "PreStressMembraneElement3D3N",
 
-            "ShellThinElement3D3N"
-            #"ShellThickElementCorotational3D3N" # Peter
+            "ShellThinElementCorotational3D3N"
+            "ShellThickElementCorotational3D3N"
         ],
         204 : [ 
             "SmallDisplacementElement2D4N",
@@ -112,8 +112,8 @@ ELEMENTS = {
 
             "PreStressMembraneElement3D4N",
 
-            #"ShellThinElementCorotational3D4N", # Peter
-            "ShellThickElement3D4N"
+            "ShellThinElementCorotational3D4N", 
+            "ShellThickElementCorotational3D4N"
         ],
         304 : [
             "SmallDisplacementElement3D4N",
@@ -129,7 +129,6 @@ ELEMENTS = {
         ]
     }
 }
-  
 
 CONDITIONS = {
     "0_Generic" : {
@@ -257,18 +256,23 @@ def GetFilePathOpen(FileType, name=""):
     valid_file = False
     if name is not "":
         name = " for: " + name
+
+    initial_directory = GetInitialDirectory()
+        
     if (FileType == "dat"):
-        file_path = tk.filedialog.askopenfilename(title="Open file" + name,filetypes=[("salome mesh","*.dat")])
+        file_path = tk.filedialog.askopenfilename(initialdir=initial_directory, title="Open file" + name,filetypes=[("salome mesh","*.dat")])
     elif (FileType == conv_project_file_ending):
-        file_path = tk.filedialog.askopenfilename(title="Open file" + name,filetypes=[("converter files","*" + conv_project_file_ending)])
+        file_path = tk.filedialog.askopenfilename(initialdir=initial_directory, title="Open file" + name,filetypes=[("converter files","*" + conv_project_file_ending)])
     elif (FileType == conv_scheme_file_ending):
-        file_path = tk.filedialog.askopenfilename(title="Open file" + name,filetypes=[("converter files","*" + conv_scheme_file_ending)])
+        file_path = tk.filedialog.askopenfilename(initialdir=initial_directory, title="Open file" + name,filetypes=[("converter files","*" + conv_scheme_file_ending)])
     else:
         print("Unsupported FileType") # TODO make messagebox
     
     if file_path != "":
         valid_file = FileExists(file_path)
         logging.debug("File Path: " + file_path)
+        if valid_file:
+            SetInitialDirectory(file_path)
     
     return file_path, valid_file
 
@@ -279,12 +283,16 @@ def FileExists(file_path):
 
 def GetFilePathSave(FileType):
     file_path = ""
+
+    initial_directory = GetInitialDirectory()
+
     if (FileType == "mdpa"):
-        file_path = tk.filedialog.asksaveasfilename(title="Select file",
+        file_path = tk.filedialog.asksaveasfilename(initialdir=initial_directory, title="Select file",
                                                     filetypes=[("mdpa files","*.mdpa")])
         if file_path: # check if a file path was read (i.e. if the file-selection was NOT aborted)
             if not file_path.endswith(".mdpa"):
                 file_path += ".mdpa"
+            SetInitialDirectory(file_path)
     else:
         print("Unsupported FileType") # TODO make messagebox
 
@@ -293,6 +301,19 @@ def GetFilePathSave(FileType):
 
 def GetFileName(FilePath):
     return splitext(basename(FilePath))[0]
+
+
+def GetInitialDirectory():
+    global PREV_USED_DIR
+    if not isdir(PREV_USED_DIR): # Assign the default in case the directory does not exist (any more)
+        PREV_USED_DIR = "."
+
+    return PREV_USED_DIR
+
+
+def SetInitialDirectory(FilePath):
+    global PREV_USED_DIR
+    PREV_USED_DIR = dirname(FilePath)
 
 
 # Other Functions
