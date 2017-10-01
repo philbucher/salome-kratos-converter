@@ -267,14 +267,46 @@ def GetFilePathOpen(FileType, name=""):
         file_path = tk.filedialog.askopenfilename(initialdir=initial_directory, title="Open file" + name,filetypes=[("converter files","*" + conv_scheme_file_ending)])
     else:
         print("Unsupported FileType") # TODO make messagebox
-    
-    if file_path != "":
+
+    if file_path != "" and file_path != (): # () is the output of a cancelled file open dialog
         valid_file = FileExists(file_path)
         logging.debug("File Path: " + file_path)
         if valid_file:
             SetInitialDirectory(file_path)
     
     return file_path, valid_file
+
+
+def GetFilePathsOpen(FileType, name=""): # Used to open multiple files
+    file_path = ""
+    all_files_valid = False
+    valid_files = []
+
+    if name is not "":
+        name = " for: " + name
+
+    initial_directory = GetInitialDirectory()
+
+    if (FileType == "dat"):
+        file_paths = tk.filedialog.askopenfilenames(
+            initialdir=initial_directory, title="Open file" + name, filetypes=[("salome mesh", "*.dat")])
+    else:
+        print("Unsupported FileType")  # TODO make messagebox
+
+    file_paths = list(file_paths)
+    
+    for file_path in file_paths:
+        if file_path != "":
+            valid_file = FileExists(file_path)
+            valid_files.append(valid_file)
+            logging.debug("File Path: " + file_path)
+            if valid_file:
+                SetInitialDirectory(file_path)
+    
+    if len(valid_files) > 0: # this check is necessary bcs 'all' returns True for an empty list!
+        all_files_valid = all(valid_files)
+
+    return file_paths, all_files_valid
 
 
 def FileExists(file_path):
