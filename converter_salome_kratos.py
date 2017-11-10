@@ -23,7 +23,10 @@ Usage: Execute this file with Python 3
 File Structure:
 converter_salome_kratos.py  ### Main File
     converter_gui.py        ### GUI related Functionalities
-    converter_utilities.py  ### Auxilliary Functions
+    converter_gui_utilities.py  ### Auxilliary Functions for GUI functions
+
+    kratos_utilities.py  ### Kratos Related Utilities, also used in other Projects
+    global_utilities.py  ### Global Utilities, also used in other Projects
 '''
 
 # Python imports
@@ -31,14 +34,15 @@ import tkinter
 import logging
 
 # Project imports
-import converter_utilities as utils
 import converter_gui as gui
+import converter_gui_utilities as utils
+import kratos_utilities as kratos_utils
 
 
 def main():
     logging.info("Starting Converter")
     utils.PrintLogo()
-    model_part = utils.MainModelPart()
+    model_part = kratos_utils.MainModelPart()
     root = tkinter.Tk()
     gui.GUIObject(root, model_part)
     root.mainloop()  

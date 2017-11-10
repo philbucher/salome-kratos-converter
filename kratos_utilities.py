@@ -16,491 +16,12 @@ June 2017
 Intended for non-commercial use in research
 '''
 
-### TODO list ###
-# sort selection window by entities (nodes, elements, conditions)
-
-DEBUG = False          # Set this Variable to "True" for debugging
-LOG_TIMING = True
-READABLE_MDPA = True  # Use this to get a nicely formatted mdpa file. Works in most cases, but files are larger (~20%) and mdpa writing takes slightly more time
-VERSION = 1.1
-PREV_USED_DIR = "."
-
 # Python imports
-import sys
-import tkinter as tk
-from tkinter import filedialog
-from os.path import splitext, basename, dirname, isfile, isdir
 import time
-import logging
 
-if DEBUG:
-    logging.basicConfig(level=logging.DEBUG)
-else:
-    logging.basicConfig(level=logging.INFO)
+# Project imports
+import global_utilities as global_utils
 
-conv_scheme_file_ending = ".conv.scheme.json"
-conv_project_file_ending = ".conv.proj.json"
-
-NODE_IDENTIFIER = 101 # This was made by me, it does not come from SALOME! Cannot start with 0!
-SALOME_IDENTIFIERS = {
-        NODE_IDENTIFIER : "Node", 
-        102 : "Line",
-        203 : "Triangle",
-        204 : "Quadrilateral",
-        304 : "Tetrahedral",
-        308 : "Hexahedral"        
-}
-
-ELEMENTS = {
-    "0_Generic" : {
-        102 : [ 
-            "Element2D2N",
-        ],
-        203 : [ 
-            "Element2D3N",
-            "Element3D3N"
-        ],
-        204 : [ 
-            "Element2D4N"
-        ],
-        304 : [ 
-            "Element3D4N"
-        ],
-        308 : [ 
-            "Element3D8N"
-        ],
-    },
-    "1_Fluid" : {
-        203 : [ 
-            "Element2D3N"
-        ],
-        304 : [ 
-            "Element3D4N"
-        ]
-    },
-    "2_Structure" : {
-        NODE_IDENTIFIER : [ 
-            "NodalConcentratedElement2D1N",
-            "NodalConcentratedDampedElement2D1N",
-
-            "NodalConcentratedElement3D1N",
-            "NodalConcentratedDampedElement3D1N"
-        ],
-        102 : [ 
-            "TrussElement3D2N",
-            "TrussLinearElement3D2N",
-
-            "CrBeamElement3D2N",
-            "CrLinearBeamElement3D2N",
-
-            "SpringDamperElement3D2N"
-        ],
-        203 : [ 
-            "SmallDisplacementElement2D3N",
-            "TotalLagrangianElement2D3N",
-            "UpdatedLagrangianElement2D3N",
-
-            "PreStressMembraneElement3D3N",
-
-            "ShellThinElementCorotational3D3N"
-            "ShellThickElementCorotational3D3N"
-        ],
-        204 : [ 
-            "SmallDisplacementElement2D4N",
-            "TotalLagrangianElement2D4N",
-            "UpdatedLagrangianElement2D4N",
-
-            "PreStressMembraneElement3D4N",
-
-            "ShellThinElementCorotational3D4N", 
-            "ShellThickElementCorotational3D4N"
-        ],
-        304 : [
-            "SmallDisplacementElement3D4N",
-            "TotalLagrangianElement3D4N",
-            "UpdatedLagrangianElement3D4N"
-
-        ],
-        308 : [
-            "SmallDisplacementElement3D8N",
-            "TotalLagrangianElement3D8N",
-            "UpdatedLagrangianElement3D8N"
-
-        ]
-    }
-}
-
-CONDITIONS = {
-    "0_Generic" : {
-        NODE_IDENTIFIER : [ 
-            "PointCondition2D1N",
-            "PointCondition3D1N"
-        ],
-        102 : [  
-            "LineCondition2D2N",
-            "LineCondition3D2N"
-        ],
-        203 : [ 
-            "SurfaceCondition3D3N"            
-        ],
-        204 : [ 
-            "SurfaceCondition3D4N"
-        ]
-    },
-    "1_Fluid" : {
-        102 : [ 
-            "WallCondition2D2N"
-        ],
-        203 : [ 
-            "WallCondition3D3N"
-        ]
-    },
-    "2_Structure" : {
-        NODE_IDENTIFIER : [ 
-            "PointLoadCondition2D1N",
-            "PointLoadCondition2D1N",
-
-            "PointMomentCondition3D1N",
-
-            "PointTorqueCondition3D1N"
-        ],
-        102 : [ 
-            "LineLoadCondition2D2N"
-        ],
-        203 : [ 
-            "SurfaceLoadCondition3D3N"
-        ],
-        204 : [ 
-            "SurfaceLoadCondition3D4N"
-        ]
-    }
-}
-
-
-def ReadAndParseFile(file_path):
-    valid_file = True
-    nodes = {}
-    geom_entities = {}
-
-    try:
-        with open(file_path,"r") as f:
-            lines = f.readlines()
-            # .dat header
-            line = lines[0].split()
-            num_nodes = int(line[0])
-            # num_elems = int(line[1])
-            # nodes = lines[1:num_nodes+1]
-
-            if num_nodes == 0:
-                logging.error('No nodes in file \"{}\"'.format(file_path))
-                valid_file = False
-            
-            if valid_file:
-                
-                for line in lines[1:num_nodes+1]:
-                    words = line.split()
-                    salome_ID = int(words[0])
-                    coords = [float(words[1]), float(words[2]), float(words[3])] # X, Y, Z
-                    nodes.update({salome_ID : coords})
-                
-                geom_entities = {}
-
-                # Read Geometric Objects (Lines, Triangles, Quads, ...)
-                for line in lines[num_nodes+1:]:
-                    words = line.split()
-                    salome_ID = int(words[0])
-                    salome_identifier = int(words[1]) # get the salome identifier
-                    node_list = []
-                    for i in range(2, len(words)):
-                        node_list.append(int(words[i]))
-                    
-                    geom_entity = GeometricEntitySalome(salome_ID,
-                                                salome_identifier,
-                                                node_list)
-                    
-                    if salome_identifier not in geom_entities: # geom entities with this identifier are already existing # TODO don't I have to use .key() here?
-                        geom_entities[salome_identifier] = []
-
-                    geom_entities[salome_identifier].append(geom_entity)
-    except:
-        logging.error('Reading File \"{}\" failed!'.format(file_path))
-        valid_file = False
-
-    return valid_file, nodes, geom_entities
-
-# Functions related to Window
-def BringWindowToFront(window):
-    window.lift()
-    window.attributes('-topmost', 1)
-    window.focus_force() # Forcing the focus on the window, seems to be not the nicest solution but it works
-    window.after_idle(window.attributes,'-topmost',False) # TODO check under Windows
-
-
-def MaximizeWindow(window):
-    # TODO check which one works for MacOS
-    if (GetOS() == "linux"):
-        window.attributes('-zoomed', True)
-    else:   
-        window.state('zoomed')
-
-
-def CloseWindow(window, master):
-    window.destroy()
-    if master is not None:
-        master.SetChildWindowIsClosed()
-
-
-# Functions related to Files
-def GetFilePathOpen(FileType, name=""):
-    file_path = ""
-    valid_file = False
-    if name is not "":
-        name = " for: " + name
-
-    initial_directory = GetInitialDirectory()
-        
-    if (FileType == "dat"):
-        file_path = tk.filedialog.askopenfilename(initialdir=initial_directory, title="Open file" + name,filetypes=[("salome mesh","*.dat")])
-    elif (FileType == conv_project_file_ending):
-        file_path = tk.filedialog.askopenfilename(initialdir=initial_directory, title="Open file" + name,filetypes=[("converter files","*" + conv_project_file_ending)])
-    elif (FileType == conv_scheme_file_ending):
-        file_path = tk.filedialog.askopenfilename(initialdir=initial_directory, title="Open file" + name,filetypes=[("converter files","*" + conv_scheme_file_ending)])
-    else:
-        print("Unsupported FileType") # TODO make messagebox
-
-    if file_path != "" and file_path != (): # () is the output of a cancelled file open dialog
-        valid_file = FileExists(file_path)
-        logging.debug("File Path: " + file_path)
-        if valid_file:
-            SetInitialDirectory(file_path)
-    
-    return file_path, valid_file
-
-
-def GetFilePathsOpen(FileType, name=""): # Used to open multiple files
-    file_path = ""
-    all_files_valid = False
-    valid_files = []
-
-    if name is not "":
-        name = " for: " + name
-
-    initial_directory = GetInitialDirectory()
-
-    if (FileType == "dat"):
-        file_paths = tk.filedialog.askopenfilenames(
-            initialdir=initial_directory, title="Open file" + name, filetypes=[("salome mesh", "*.dat")])
-    else:
-        print("Unsupported FileType")  # TODO make messagebox
-
-    file_paths = list(file_paths)
-    
-    for file_path in file_paths:
-        if file_path != "":
-            valid_file = FileExists(file_path)
-            valid_files.append(valid_file)
-            logging.debug("File Path: " + file_path)
-            if valid_file:
-                SetInitialDirectory(file_path)
-    
-    if len(valid_files) > 0: # this check is necessary bcs 'all' returns True for an empty list!
-        all_files_valid = all(valid_files)
-
-    return file_paths, all_files_valid
-
-
-def FileExists(file_path):
-    return isfile(file_path)
-
-
-def GetFilePathSave(FileType):
-    file_path = ""
-
-    initial_directory = GetInitialDirectory()
-
-    if (FileType == "mdpa"):
-        file_path = tk.filedialog.asksaveasfilename(initialdir=initial_directory, title="Select file",
-                                                    filetypes=[("mdpa files","*.mdpa")])
-        if file_path: # check if a file path was read (i.e. if the file-selection was NOT aborted)
-            if not file_path.endswith(".mdpa"):
-                file_path += ".mdpa"
-            SetInitialDirectory(file_path)
-    else:
-        print("Unsupported FileType") # TODO make messagebox
-
-    return file_path
-
-
-def GetFileName(FilePath):
-    return splitext(basename(FilePath))[0]
-
-
-def GetInitialDirectory():
-    global PREV_USED_DIR
-    if not isdir(PREV_USED_DIR): # Assign the default in case the directory does not exist (any more)
-        PREV_USED_DIR = "."
-
-    return PREV_USED_DIR
-
-
-def SetInitialDirectory(FilePath):
-    global PREV_USED_DIR
-    PREV_USED_DIR = dirname(FilePath)
-
-
-# Other Functions
-def GetGeneralInfoDict():
-    general_info_dict = {}
-    localtime = time.asctime( time.localtime(time.time()) )
-    
-    general_info_dict.update({"Version" : VERSION})
-    general_info_dict.update({"Date" : localtime})
-    general_info_dict.update({"OperatingSystem" : GetOS()})
-    
-    return general_info_dict
-
-
-def GetOS():
-    os_name = "unknown"
-
-    os_platform = sys.platform
-
-    if (os_platform.startswith("linux")):
-        os_name = "linux"
-    elif (os_platform == ("win32" or "cygwin")):
-        os_name = "windows"
-    elif (os_platform == "darwin"):
-        os_name = "macos"
-
-    return os_name
-
-
-def PrintLogo():
-    print('''  ___   _   _    ___  __  __ ___    _  _____    _ _____ ___  ___  
- / __| /_\ | |  / _ \|  \/  | __|__| |/ / _ \  /_\_   _/ _ \/ __| 
- \__ \/ _ \| |_| (_) | |\/| | _|___| ' <|   / / _ \| || (_) \__ \ 
- |___/_/ \_\____\___/|_|  |_|___|  |_|\_\_|_\/_/ \_\_| \___/|___/ 
-  / __|___ _ ___ _____ _ _| |_ ___ _ _                            
- | (__/ _ \ ' \ V / -_) '_|  _/ -_) '_|                           
-  \___\___/_||_\_/\___|_|  \__\___|_|  ''')
-    print("   VERSION", VERSION)
-
-
-def GetEntityType(SalomeIdentifier):
-    post_string = "Unknown"
-    if SalomeIdentifier in SALOME_IDENTIFIERS:
-        post_string = SALOME_IDENTIFIERS[SalomeIdentifier]
-
-    return str(SalomeIdentifier) + "_" + post_string
-
-
-def GetSalomeIdentifier(origin_entity):
-    return int(origin_entity.split("_")[0])
-
-
-def GetTreeItem(tree, event):
-    return tree.identify('item', event.x, event.y)
-
-
-def DictKeyToInt(dictionary):
-    if not isinstance(dictionary, dict):
-        raise Exception("Input is not a dict!")
-
-    dictionary_int = {}
-
-    for key, val in dictionary.items():
-        dictionary_int.update({ int(key) : val })
-
-    return dictionary_int
-
-
-def CorrectMeshDict(mesh_dict):
-    # This function converts some keys from str back to int (caused by loading json files)
-    corrected_mesh_dict = {}
-    for key, val in mesh_dict.items():
-        if key == "entity_creation":
-            corrected_mesh_dict.update({"entity_creation" : DictKeyToInt(mesh_dict["entity_creation"])})
-        else:
-            corrected_mesh_dict.update({key : val})
-    
-    return corrected_mesh_dict
-  
-
-def CorrectNodeListOrder(salome_node_list, salome_identifier):
-    # This function corrects the order in the node list because for
-    # some elements the nodal order is different btw SALOME and Kratos
-    if salome_identifier == 308: # Hexahedral
-        salome_node_list[1], salome_node_list[3] = salome_node_list[3], salome_node_list[1]
-        salome_node_list[5], salome_node_list[7] = salome_node_list[7], salome_node_list[5]
-
-    return salome_node_list
-
-
-def GetDictFromTree(tree):
-    dictionary = {"entity_creation" : {}}
-
-    for child in tree.get_children():
-        if (tree.tag_has("Element", child)):
-            item_values = tree.item(child,"values")
-            element_name = item_values[0]
-            property_ID = item_values[1]
-            salome_identifier = GetSalomeIdentifier(item_values[2])
-            
-            AddEntryToDict(dictionary, salome_identifier, "Element", element_name, property_ID)
-
-        if (tree.tag_has("Condition", child)):
-            item_values = tree.item(child,"values")
-            condition_name = item_values[0]
-            property_ID = item_values[1]
-            salome_identifier = GetSalomeIdentifier(item_values[2])
-            
-            AddEntryToDict(dictionary, salome_identifier, "Condition", condition_name, property_ID)
-    
-    return dictionary
-    
-    
-def AddEntryToDict(json_dict, salome_identifier, entity_type, entity_name, property_ID):
-    if salome_identifier not in json_dict["entity_creation"]:
-        json_dict["entity_creation"][salome_identifier] = {}
-        
-    if entity_type not in json_dict["entity_creation"][salome_identifier]:
-        json_dict["entity_creation"][salome_identifier][entity_type] = {}
-            
-    json_dict["entity_creation"][salome_identifier][entity_type].update({entity_name: property_ID})
-
-
-def LogTiming(log_info, start_time):
-    if LOG_TIMING:
-        logging.info(" [TIMING] \"" + log_info + "\" {:.2f}".format(time.time() - start_time) + " sec")
-
-
-
-class GeometricEntitySalome:
-    def __init__(self, salome_ID, salome_identifier, node_list):
-        self.salome_ID = salome_ID
-        self.salome_identifier = salome_identifier
-        self._SetNodeList(node_list)
-
-
-    def _SetNodeList(self, salome_node_list):
-        CorrectNodeListOrder(salome_node_list, self.salome_identifier)
-        self.node_list = salome_node_list
-        
-
-    def GetNodeList(self):
-        return self.node_list
-
-
-    def GetID(self):
-        return self.salome_ID
-
-
-    def Serialize(self):
-        serialized_entity = [self.salome_ID, self.salome_identifier, self.node_list]
-        return serialized_entity
-        
-        
-    
 class KratosEntity:
     def __init__(self, salome_entity, name, property_ID):
         self.is_node = False
@@ -530,7 +51,7 @@ class KratosEntity:
             for node in self.origin_entity.GetNodeList():
                 line += space + str(node)
                 
-            if DEBUG:
+            if global_utils.GetDebug():
                 line += " // " + str(self.origin_entity.GetID()) # add the origin ID
         
         return line
@@ -643,7 +164,7 @@ class MainModelPart:
 
     def Serialize(self):
         # This function serializes the ModelPart such that it can be saved in a json file
-        logging.debug("Serializing ModelPart")
+        global_utils.LogDebug("Serializing ModelPart")
         serialized_dict = {}
         for smp_name in sorted(self.sub_model_parts.keys()):
             smp = self.sub_model_parts[smp_name]
@@ -663,13 +184,13 @@ class MainModelPart:
         
         self.mesh_read = True
 
-        logging.debug("Deserialized ModelPart")
+        global_utils.LogDebug("Deserialized ModelPart")
 
 
     def _Assemble(self):
         # TODO Check if this was done before! (same for the submodelparts)
         start_time = time.time()
-        logging.info("Assembling Mesh")
+        global_utils.LogInfo("Assembling Mesh")
         self._InitializeMesh()
         for smp_name in sorted(self.sub_model_parts.keys()):
             smp = self.sub_model_parts[smp_name]
@@ -679,7 +200,7 @@ class MainModelPart:
             self._AddElements(smp_name, smp_elements)
             self._AddConditions(smp_name, smp_conditions)
         
-        LogTiming("Mesh assembling time", start_time)
+        global_utils.LogTiming("Mesh assembling time", start_time)
         
 
     def _AddNodes(self, smp_nodes):
@@ -690,7 +211,7 @@ class MainModelPart:
                     raise Exception("Node with ID", node_ID, "already exists with different coordinates!")
             else:
                 self.nodes[node_ID] = smp_nodes[node_ID]
-                if READABLE_MDPA:
+                if global_utils.GetReadableMDPA():
                     if smp_nodes[node_ID][0] > self.max_node_coord_x: self.max_node_coord_x = smp_nodes[node_ID][0]
                     if smp_nodes[node_ID][1] > self.max_node_coord_y: self.max_node_coord_y = smp_nodes[node_ID][1]
                     if smp_nodes[node_ID][2] > self.max_node_coord_z: self.max_node_coord_z = smp_nodes[node_ID][2]
@@ -730,7 +251,7 @@ class MainModelPart:
         self._Assemble() # TODO only do this if sth has changed
         
         start_time = time.time()
-        logging.info("Writing Mesh")
+        global_utils.LogInfo("Writing Mesh")
 
         # Write Header
         self._WriteMeshInfo(file)
@@ -751,7 +272,7 @@ class MainModelPart:
             smp = self.sub_model_parts[smp_name]
             smp.WriteMesh(file)
         
-        LogTiming("Mesh writing time", start_time)
+        global_utils.LogTiming("Mesh writing time", start_time)
                 
         return True
             
@@ -759,9 +280,9 @@ class MainModelPart:
     def _WriteNodes(self, file):
         file.write("Begin Nodes\n")
 
-        if READABLE_MDPA:
+        if global_utils.GetReadableMDPA():
             max_ID = max(self.nodes.keys())
-            logging.debug("Max Node ID: " + str(max_ID))
+            global_utils.LogDebug("Max Node ID: " + str(max_ID))
 
             spaces_coords_x = '{:>' + str(len(str(int(self.max_node_coord_x))) + self.precision + self.num_spaces) + '} '
             spaces_coords_y = '{:>' + str(len(str(int(self.max_node_coord_y))) + self.precision + self.num_spaces) + '} '
@@ -770,7 +291,7 @@ class MainModelPart:
         else:
             format_str = '{} {} {} {}'
             
-        logging.debug("Node Format String: " + str(format_str))
+        global_utils.LogDebug("Node Format String: " + str(format_str))
 
         for ID in sorted(list(self.nodes.keys())):
             coords = self.nodes[ID]
@@ -787,7 +308,7 @@ class MainModelPart:
         
         
     def _WriteElements(self, file):
-        if READABLE_MDPA:
+        if global_utils.GetReadableMDPA():
             num_elements = self._NumberOfElements()
             format_str = '{:>' + str(len(str(num_elements))) + '} {:>' + str(self.num_spaces) + '}'
             space = "\t"
@@ -795,7 +316,7 @@ class MainModelPart:
             format_str = '{} {}'
             space = " "
 
-        logging.debug("Element Format String: " + str(format_str))
+        global_utils.LogDebug("Element Format String: " + str(format_str))
 
         for smp_name in sorted(list(self.elements.keys())):
             for element_name in sorted(list(self.elements[smp_name])):
@@ -810,7 +331,7 @@ class MainModelPart:
         
         
     def _WriteConditions(self, file):
-        if READABLE_MDPA:
+        if global_utils.GetReadableMDPA():
             num_conditions = self._NumberOfConditions()
             format_str = '{:>' + str(len(str(num_conditions))) + '} {:>' + str(self.num_spaces) + '}'
             space = "\t"
@@ -818,7 +339,7 @@ class MainModelPart:
             format_str = '{} {}'
             space = " "
 
-        logging.debug("Condition Format String: " + str(format_str))
+        global_utils.LogDebug("Condition Format String: " + str(format_str))
 
         for smp_name in sorted(list(self.conditions.keys())):
             for condition_name in sorted(list(self.conditions[smp_name])):
@@ -873,7 +394,7 @@ class MeshSubmodelPart:
 
 
     def Serialize(self):
-        logging.debug("Serializing " + self.smp_info_dict["smp_name"])
+        global_utils.LogDebug("Serializing " + self.smp_info_dict["smp_name"])
         serialized_smp = {}
 
         serialized_smp["submodelpart_information"] = self.smp_info_dict
@@ -912,7 +433,7 @@ class MeshSubmodelPart:
 
         self.FillWithEntities(smp_info_dict, mesh_dict, nodes_read, geom_entities_read)
 
-        logging.debug("Deserialized " + smp_name)
+        global_utils.LogDebug("Deserialized " + smp_name)
 
 
     def _DeserializeDictionary(self, serialized_smp):
@@ -923,13 +444,13 @@ class MeshSubmodelPart:
         if not "mesh_information" in serialized_smp:
             raise Exception("\"mesh_information\" is not in serialized SubModelPart!")
         
-        mesh_dict = CorrectMeshDict(serialized_smp["mesh_information"])
+        mesh_dict = global_utils.CorrectMeshDict(serialized_smp["mesh_information"])
 
         return serialized_smp["submodelpart_information"], mesh_dict
 
     
     def _DeserializeNodesRead(self, serialized_nodes_read):
-        return DictKeyToInt(serialized_nodes_read) # Nodes don't need deserialization
+        return global_utils.DictKeyToInt(serialized_nodes_read) # Nodes don't need deserialization
 
 
     def _DeserializeGeomEntitiesRead(self, serialized_geom_entities_read):
@@ -941,7 +462,7 @@ class MeshSubmodelPart:
             salome_identifier = serialized_entity[1]
             node_list         = serialized_entity[2]
     
-            geom_entity = GeometricEntitySalome(salome_ID, salome_identifier, node_list)
+            geom_entity = global_utils.GeometricEntitySalome(salome_ID, salome_identifier, node_list)
             
             if salome_identifier not in deserialized_geom_entities_read: # geom entities with this identifier are already existing # TODO don't I have to use .key() here?
                 deserialized_geom_entities_read[salome_identifier] = []
@@ -977,7 +498,7 @@ class MeshSubmodelPart:
         self.elements.clear()
 
         for salome_identifier in self.mesh_dict["entity_creation"].keys():
-            if salome_identifier == NODE_IDENTIFIER:
+            if salome_identifier == global_utils.NODE_IDENTIFIER:
                 entities = self.nodes
             else:
                 entities = self.geom_entities_read[salome_identifier]
@@ -999,7 +520,7 @@ class MeshSubmodelPart:
         self.conditions.clear()
 
         for salome_identifier in self.mesh_dict["entity_creation"].keys():
-            if salome_identifier == NODE_IDENTIFIER:
+            if salome_identifier == global_utils.NODE_IDENTIFIER:
                 entities = self.nodes
             else:
                 entities = self.geom_entities_read[salome_identifier]
@@ -1048,7 +569,7 @@ class MeshSubmodelPart:
             file.write("Begin SubModelPart " + smp_name + "\n")
             
             space = ""
-            if READABLE_MDPA:
+            if global_utils.GetReadableMDPA():
                 space = "\t"
 
             # Write Nodes
