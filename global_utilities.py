@@ -16,7 +16,7 @@ June 2017
 Intended for non-commercial use in research
 '''
 # Global Variables
-DEBUG = True          # Set this Variable to "True" for debugging
+DEBUG = False          # Set this Variable to "True" for debugging
 LOG_TIMING = True
 READABLE_MDPA = True  # Use this to get a nicely formatted mdpa file. Works in most cases, but files are larger (~20%) and mdpa writing takes slightly more time
 

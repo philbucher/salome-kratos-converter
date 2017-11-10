@@ -213,12 +213,8 @@ class GUIObject(BaseWindow): # This is the main Window
 
     
     def CloseWindow(self): # override
-        if (self.unsaved_changes_exist):
-            result = messagebox.askquestion("Warning", "Unsaved changes exist, exit anyway?", icon='warning')
-            if result == 'yes':
-                self._CloseMainWindow()
-        else:
-            self._CloseMainWindow()        
+        if self._CheckForUnsavedChanges():
+                self._CloseMainWindow()    
 
 
     def _CloseMainWindow(self):
@@ -233,33 +229,47 @@ class GUIObject(BaseWindow): # This is the main Window
                                     "Website: https://github.com/philbucher/salome-kratos-converter\n" +
                                     "Version: " + str(utils.VERSION))
 
+
+    def _CheckForUnsavedChanges(self):
+        if (self.unsaved_changes_exist):
+            result = messagebox.askquestion("Warning", "Unsaved changes exist, continue anyway?", icon='warning', default="no")
+            if result == 'yes':
+                return True
+            else:
+                return False
+        else:
+            return True
+
+
     def _NewProject(self):
-        # TODO check for unsaved changes and stuff
         if self.child_window_open:
             self.PlotCmdOutput("Close child windows first", "red")
         else:
-            self._ResetGUI()
-            self.PlotCmdOutput("New project initialized", "orange")
+            if self._CheckForUnsavedChanges():
+                self._ResetGUI()
+                self.PlotCmdOutput("New project initialized", "orange")
 
 
     def _OpenConverterProject(self):
-        self._ResetGUI()
-        file_path, valid_file = utils.GetFilePathOpen(utils.conv_project_file_ending)
-        utils.BringWindowToFront(self.window)
-  
-        if valid_file:
-            serialized_model_part_dict = {}
-            # try:
-            start_time = time.time()
-            with open(file_path, "r") as json_file:
-                serialized_model_part_dict = fast_json.load(json_file)
+        if self._CheckForUnsavedChanges():
+            self._ResetGUI()
+            file_path, valid_file = utils.GetFilePathOpen(utils.conv_project_file_ending)
+            utils.BringWindowToFront(self.window)
+    
+            if valid_file:
+                serialized_model_part_dict = {}
+                try:
+                    start_time = time.time()
+                    with open(file_path, "r") as json_file:
+                        serialized_model_part_dict = fast_json.load(json_file)
 
-            self.model_part.Deserialize(serialized_model_part_dict)
-            self.UpdateMeshTree()
-            global_utils.LogTiming("Open Project", start_time)
-            self.PlotCmdOutput("Opened the project", "green")
-            global_utils.LogInfo("Opened Project")
-
+                    self.model_part.Deserialize(serialized_model_part_dict)
+                    self.UpdateMeshTree()
+                    global_utils.LogTiming("Open Project", start_time)
+                    self.PlotCmdOutput("Opened the project", "green")
+                    global_utils.LogInfo("Opened Project")
+                except:
+                    self.PlotCmdOutput("Opening project from file \"{}\" failed".format(file_path), "red")
 
     def _SaveConverterProject(self, save_as):
         if len(self.tree.get_children()) == 0:
@@ -298,26 +308,27 @@ class GUIObject(BaseWindow): # This is the main Window
 
 
     def _ImportConverterScheme(self):
-        self._ResetGUI()
-        file_path, valid_file = utils.GetFilePathOpen(utils.conv_scheme_file_ending)
-        utils.BringWindowToFront(self.window)
+        if self._CheckForUnsavedChanges():
+            self._ResetGUI()
+            file_path, valid_file = utils.GetFilePathOpen(utils.conv_scheme_file_ending)
+            utils.BringWindowToFront(self.window)
 
-        if valid_file:
-            json_dict = {}
-            try:
-                with open(file_path, "r") as json_file:
-                    json_dict = json.load(json_file)
-                    if json_dict == {}:
-                        self.PlotCmdOutput("Nothing imported", "red")
-                    else:
-                        corrected_json = {}
-                        for file_name in json_dict.keys():
-                            if file_name != "general":
-                                corrected_json.update({file_name : global_utils.CorrectMeshDict(json_dict[file_name])})
-                    
-                        self.OpenChildWindow(self._CreateFileSelectionWindow, corrected_json)
-            except:
-                self.PlotCmdOutput("Opening scheme from file \"{}\" failed".format(file_path), "red")
+            if valid_file:
+                json_dict = {}
+                try:
+                    with open(file_path, "r") as json_file:
+                        json_dict = json.load(json_file)
+                        if json_dict == {}:
+                            self.PlotCmdOutput("Nothing imported", "red")
+                        else:
+                            corrected_json = {}
+                            for file_name in json_dict.keys():
+                                if file_name != "general":
+                                    corrected_json.update({file_name : global_utils.CorrectMeshDict(json_dict[file_name])})
+                        
+                            self.OpenChildWindow(self._CreateFileSelectionWindow, corrected_json)
+                except:
+                    self.PlotCmdOutput("Opening scheme from file \"{}\" failed".format(file_path), "red")
 
 
     def _ExportConverterScheme(self):
