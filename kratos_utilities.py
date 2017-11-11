@@ -149,6 +149,7 @@ class MainModelPart:
         
         self.mesh_read = True
 
+
     def UpdateMesh(self, old_smp_name, smp_info_dict, mesh_dict):
         new_smp_name = smp_info_dict["smp_name"]
         self.sub_model_parts[new_smp_name] = self.sub_model_parts.pop(old_smp_name) # Update the key

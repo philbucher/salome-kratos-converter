@@ -78,7 +78,6 @@ def GetFilePathOpen(FileType, name=""):
         print("Unsupported FileType") # TODO make messagebox
     
     if file_path not in ["", ()]: # () is the output of a cancelled file open dialog
-        print("file_path", file_path)
         valid_file = FileExists(file_path)
         global_utils.LogDebug("File Path: " + file_path)
         if valid_file:
