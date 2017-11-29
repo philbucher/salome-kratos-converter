@@ -81,6 +81,7 @@ class TestMainModelPart(unittest.TestCase):
 class MeshSubmodelPart(unittest.TestCase):
     
     def setUp(self):
+        self.write_mesh_ref_file = os.path.join(os.getcwd(), "MeshSubmodelPart_WriteMesh.ref")
         self.write_mesh_info_ref_file = os.path.join(os.getcwd(), "MeshSubmodelPart_WriteMeshInfo.ref")
         self.test_file = os.path.join(os.getcwd(), "test_file.tmp")
 
@@ -303,12 +304,33 @@ class MeshSubmodelPart(unittest.TestCase):
             with self.assertRaises(RuntimeError): # Throws bcs the obj2test is not properly initialized!
                 obj2test.WriteMesh(test_file)
 
+        self._fill_smp(obj2test)
+        obj2test.Assemble()
+
+        nodes, elements, conditions = obj2test.GetMesh()
+
+        # Hackish way to assign new IDs, bcs Elements and Conditions throw if the didn't get assigned a new ID!
+        index = 1
+        for elem_name in sorted(elements.keys()):
+            new_elems = elements[elem_name]
+            for i in range(len(new_elems)):
+                new_elems[i].new_ID = index
+                index +=1
+
+        index = 1
+        for elem_name in sorted(conditions.keys()):
+            new_conds = conditions[elem_name]
+            for i in range(len(new_conds)):
+                new_conds[i].new_ID = index
+                index +=1
+
+        with open(self.test_file, "w") as test_file:
+            obj2test.WriteMesh(test_file)
+
+        self.assertTrue(filecmp.cmp(self.write_mesh_ref_file, self.test_file))
         os.remove(self.test_file)
 
-        # The actual writting of this class cannot be tested here, bcs no new IDs have been assigned
-        # to the Elements and Conditions, whch makes them throw an error when they are to be written
-
-    def _test_WriteMeshInfo(self):
+    def test_WriteMeshInfo(self):
         obj2test = kratos_utils.MeshSubmodelPart()
         
         with open(self.test_file, "w") as test_file:
