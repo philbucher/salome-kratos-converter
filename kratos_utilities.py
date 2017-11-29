@@ -32,16 +32,39 @@ class KratosEntity:
         self.name = name        
         self.new_ID = -1
         self.property_ID = property_ID
+
+    def __str__(self):
+        stringbuf = "Name: " + self.name
+        stringbuf += "; PropID: " + str(self.property_ID)
+        stringbuf += "; NewId: " + str(self.new_ID)
+        if self.is_node:
+            stringbuf += "; OriginEntity: " + str(self.origin_entity)
+        else:
+            stringbuf += "; OriginEntity: " + str(self.origin_entity)
+
+        return stringbuf
+    
+    __repr__ = __str__
+
+
+    def __eq__(self, Other):
+        if self.origin_entity != Other.origin_entity:
+            return False
+        if self.name != Other.name:
+            return False
+        if self.property_ID != Other.property_ID:
+            return False
+        return True
     
 
     def GetID(self):
         if self.new_ID == -1:
-            raise Exception("No new ID has been assiged")
+            raise RuntimeError("No new ID has been assiged")
         return self.new_ID
     
 
-    def GetWriteLine(self, ID, format_str, space):
-        self.new_ID = ID
+    def GetWriteLine(self, NewID, format_str, space):
+        self.new_ID = NewID
         # "0" is the Property Placeholder
         line = format_str.format(str(self.new_ID), str(self.property_ID))
 
@@ -61,12 +84,23 @@ class KratosEntity:
 class Element(KratosEntity):
     def __init__(self, salome_entity, name, property_ID):
         super().__init__(salome_entity, name, property_ID)
+
+    def __str__(self):
+        return "Element | " + super().__str__()
+        
+    __repr__ = __str__
         
         
         
 class Condition(KratosEntity):
     def __init__(self, salome_entity, name, property_ID):
         super().__init__(salome_entity, name, property_ID)
+
+    def __str__(self):
+        return "Condition | " + super().__str__()
+        
+    __repr__ = __str__
+
         
         
         
@@ -144,6 +178,9 @@ class MainModelPart:
         
     def AddMesh(self, smp_info_dict, mesh_dict, nodes_read, geom_entities_read):
         smp_name = smp_info_dict["smp_name"]
+        if smp_name in self.sub_model_parts.keys():
+            raise NameError("SubModelPart \"" + smp_name + "\" exists already!")
+
         self.sub_model_parts[smp_name] = MeshSubmodelPart()
         self.sub_model_parts[smp_name].FillWithEntities(smp_info_dict, mesh_dict, nodes_read, geom_entities_read)
         
@@ -152,6 +189,8 @@ class MainModelPart:
 
     def UpdateMesh(self, old_smp_name, smp_info_dict, mesh_dict):
         new_smp_name = smp_info_dict["smp_name"]
+        if old_smp_name not in self.sub_model_parts.keys():
+            raise NameError("SubModelPart \"" + old_smp_name + "\" does not exist!")
         self.sub_model_parts[new_smp_name] = self.sub_model_parts.pop(old_smp_name) # Update the key
         
         self.sub_model_parts[new_smp_name].Update(smp_info_dict, mesh_dict)
@@ -209,7 +248,7 @@ class MainModelPart:
             if node_ID in self.nodes.keys():
                 existing_node_coords = self.nodes[node_ID]
                 if existing_node_coords != smp_nodes[node_ID]:
-                    raise Exception("Node with ID", node_ID, "already exists with different coordinates!")
+                    raise RuntimeError("Node with ID", node_ID, "already exists with different coordinates!")
             else:
                 self.nodes[node_ID] = smp_nodes[node_ID]
                 if global_utils.GetReadableMDPA():
@@ -248,14 +287,14 @@ class MainModelPart:
         return num_conditions
     
 
-    def WriteMesh(self, file):
+    def WriteMesh(self, file, info_text=""):
         self._Assemble() # TODO only do this if sth has changed
         
         start_time = time.time()
         global_utils.LogInfo("Writing Mesh")
 
         # Write Header
-        self._WriteMeshInfo(file)
+        self._WriteMeshInfo(file, info_text)
         file.write("\nBegin ModelPartData\n//  VARIABLE_NAME value\nEnd ModelPartData\n\n")
         file.write("Begin Properties 0\nEnd Properties\n\n")
         
@@ -354,9 +393,11 @@ class MainModelPart:
                 file.write("End Conditions // " + condition_name + "\n\n")
     
 
-    def _WriteMeshInfo(self, file):
+    def _WriteMeshInfo(self, file, info_text):
         localtime = time.asctime( time.localtime(time.time()) )
-        file.write("// File created on " + localtime + " with SALOME-Kratos Converter\n")
+        file.write("// File created on " + localtime + "\n") # with SALOME-Kratos Converter\n
+        if info_text != "":
+            file.write("// " + info_text + "\n")
         file.write("// Mesh Information:\n")
         file.write("// Number of Nodes: " + str(self._NumberOfNodes()) + "\n")
         file.write("// Number of Elements: " + str(self._NumberOfElements()) + "\n")
@@ -369,11 +410,11 @@ class MainModelPart:
 
 
 class MeshSubmodelPart:
-    def __init__(self): # TODO is this needed?
-        pass
+    def __init__(self):
+        self.is_properly_initialized = False
         
         
-    def Initialize(self):
+    def _Initialize(self):
         self.nodes = {}
         self.elements = {}
         self.conditions = {}
@@ -386,24 +427,31 @@ class MeshSubmodelPart:
         self.geom_entities_read = geom_entities_read
         self.smp_info_dict_used_for_assembly = None
         self.mesh_dict_used_for_assembly = None
-        self.Initialize()
+        self._Initialize()
+        self.is_properly_initialized = True
         
 
     def Update(self, smp_info_dict, mesh_dict):
-        self.smp_info_dict = smp_info_dict
-        self.mesh_dict = mesh_dict
+        if self.is_properly_initialized:
+            self.smp_info_dict = smp_info_dict
+            self.mesh_dict = mesh_dict
+        else:
+            raise RuntimeError("MeshSubmodelPart is not properly initialized!")
 
 
     def Serialize(self):
-        global_utils.LogDebug("Serializing " + self.smp_info_dict["smp_name"])
-        serialized_smp = {}
+        if self.is_properly_initialized:
+            global_utils.LogDebug("Serializing " + self.smp_info_dict["smp_name"])
+            serialized_smp = {}
 
-        serialized_smp["submodelpart_information"] = self.smp_info_dict
-        serialized_smp["mesh_information"] = self.mesh_dict
-        serialized_smp["nodes_read"] = self._SerializeNodesRead()
-        serialized_smp["geom_entities_read"] = self._SerializeGeomEntitiesRead()
+            serialized_smp["submodelpart_information"] = self.smp_info_dict
+            serialized_smp["mesh_information"] = self.mesh_dict
+            serialized_smp["nodes_read"] = self._SerializeNodesRead()
+            serialized_smp["geom_entities_read"] = self._SerializeGeomEntitiesRead()
 
-        return {self.smp_info_dict["smp_name"] : serialized_smp}
+            return {self.smp_info_dict["smp_name"] : serialized_smp}
+        else:
+            raise RuntimeError("MeshSubmodelPart is not properly initialized!")
 
 
     def _SerializeNodesRead(self):
@@ -440,10 +488,10 @@ class MeshSubmodelPart:
     def _DeserializeDictionary(self, serialized_smp):
         # concert the keys to strings (has to be done bcs json converts ints to string)
         if not "submodelpart_information" in serialized_smp:
-            raise Exception("\"submodelpart_information\" is not in serialized SubModelPart!")
+            raise RuntimeError("\"submodelpart_information\" is not in serialized SubModelPart!")
 
         if not "mesh_information" in serialized_smp:
-            raise Exception("\"mesh_information\" is not in serialized SubModelPart!")
+            raise RuntimeError("\"mesh_information\" is not in serialized SubModelPart!")
         
         mesh_dict = global_utils.CorrectMeshDict(serialized_smp["mesh_information"])
 
@@ -474,21 +522,26 @@ class MeshSubmodelPart:
         
     
     def GetGeomEntites(self):
-        return self.geom_entities_read
-    
+        if self.is_properly_initialized:
+            return self.geom_entities_read
+        else:
+            raise RuntimeError("MeshSubmodelPart is not properly initialized!")
     
     def Assemble(self):
-        # This function creates the Kratos entities from the read entities  
-        # that are defined in it's dictionary
-        if (self.mesh_dict_used_for_assembly != self.mesh_dict and
-            self.smp_info_dict_used_for_assembly != self.smp_info_dict):
-        
-            self.smp_info_dict_used_for_assembly = self.smp_info_dict
-            self.mesh_dict_used_for_assembly = self.mesh_dict
+        if self.is_properly_initialized:
+            # This function creates the Kratos entities from the read entities  
+            # that are defined in it's dictionary
+            if (self.mesh_dict_used_for_assembly != self.mesh_dict and
+                self.smp_info_dict_used_for_assembly != self.smp_info_dict):
             
-            self._AddNodes()
-            self._AddElements()
-            self._AddConditions()
+                self.smp_info_dict_used_for_assembly = self.smp_info_dict
+                self.mesh_dict_used_for_assembly = self.mesh_dict
+                
+                self._AddNodes()
+                self._AddElements()
+                self._AddConditions()
+        else:
+            raise RuntimeError("MeshSubmodelPart is not properly initialized!")
         
     
     def _AddNodes(self):
@@ -539,50 +592,92 @@ class MeshSubmodelPart:
                         self.conditions[condition_name].append(Condition(entity, condition_name, property_ID))        
     
     def GetMesh(self):
-        return self.nodes, self.elements, self.conditions
+        if self.is_properly_initialized:
+            if self.mesh_dict_used_for_assembly != None:
+                return self.nodes, self.elements, self.conditions
+            else:
+                raise RuntimeError("MeshSubmodelPart was not assembled!")
+        else:
+            raise RuntimeError("MeshSubmodelPart is not properly initialized!")
     
     def GetInfoDict(self):
-        return self.smp_info_dict
+        if self.is_properly_initialized:
+            return self.smp_info_dict
+        else:
+            raise RuntimeError("MeshSubmodelPart is not properly initialized!")
     
     def GetMeshInfoDict(self):
-        return self.mesh_dict
+        if self.is_properly_initialized:
+            return self.mesh_dict
+        else:
+            raise RuntimeError("MeshSubmodelPart is not properly initialized!")
 
     def NumberOfNodes(self):
-        return len(self.nodes)
+        if self.is_properly_initialized:
+            if self.mesh_dict_used_for_assembly != None:
+                return len(self.nodes)
+            else:
+                raise RuntimeError("MeshSubmodelPart was not assembled!")
+        else:
+            raise RuntimeError("MeshSubmodelPart is not properly initialized!")
 
     def NumberOfElements(self):
-        return sum([len(val) for val in self.elements.values()])
+        if self.is_properly_initialized:
+            if self.mesh_dict_used_for_assembly != None:
+                return sum([len(val) for val in self.elements.values()])
+            else:
+                raise RuntimeError("MeshSubmodelPart was not assembled!")
+        else:
+            raise RuntimeError("MeshSubmodelPart is not properly initialized!")
 
     def NumberOfConditions(self):
-        return sum([len(val) for val in self.conditions.values()])
+        if self.is_properly_initialized:
+            if self.mesh_dict_used_for_assembly != None:
+                return sum([len(val) for val in self.conditions.values()])
+            else:
+                raise RuntimeError("MeshSubmodelPart was not assembled!")
+        else:
+            raise RuntimeError("MeshSubmodelPart is not properly initialized!")
 
     def GetFileName(self):
-        return self.smp_info_dict["smp_file_name"]
+        if self.is_properly_initialized:
+            return self.smp_info_dict["smp_file_name"]
+        else:
+            raise RuntimeError("MeshSubmodelPart is not properly initialized!")
     
     def GetFilePath(self):
-        return self.smp_info_dict["smp_file_path"]
+        if self.is_properly_initialized:
+            return self.smp_info_dict["smp_file_path"]
+        else:
+            raise RuntimeError("MeshSubmodelPart is not properly initialized!")
 
     
     def WriteMesh(self, file):
-        # Write Header
-        if self.mesh_dict["write_smp"]:
-            smp_name = self.smp_info_dict["smp_name"]
-            file.write("Begin SubModelPart " + smp_name + "\n")
-            
-            space = ""
-            if global_utils.GetReadableMDPA():
-                space = "\t"
+        if self.is_properly_initialized:
+            if self.mesh_dict_used_for_assembly != None:
+                # Write Header
+                if self.mesh_dict["write_smp"]:
+                    smp_name = self.smp_info_dict["smp_name"]
+                    file.write("Begin SubModelPart " + smp_name + "\n")
+                    
+                    space = ""
+                    if global_utils.GetReadableMDPA():
+                        space = "\t"
 
-            # Write Nodes
-            self._WriteNodes(file, space)
-            
-            # Write Elements
-            self._WriteElements(file, space)
-            
-            # Write Conditions
-            self._WriteConditions(file, space)
-            
-            file.write("End SubModelPart // " + smp_name + "\n\n")
+                    # Write Nodes
+                    self._WriteNodes(file, space)
+                    
+                    # Write Elements
+                    self._WriteElements(file, space)
+                    
+                    # Write Conditions
+                    self._WriteConditions(file, space)
+                    
+                    file.write("End SubModelPart // " + smp_name + "\n\n")
+            else:
+                raise RuntimeError("MeshSubmodelPart was not assembled!")
+        else:
+            raise RuntimeError("MeshSubmodelPart is not properly initialized!")
         
             
     def _WriteNodes(self, file, space):
@@ -615,8 +710,14 @@ class MeshSubmodelPart:
 
 
     def WriteMeshInfo(self, file):
-        if self.mesh_dict["write_smp"]: 
-            file.write("// SubModelPart " + self.smp_info_dict["smp_name"] + "\n")
-            file.write("//   Number of Nodes: " + str(self.NumberOfNodes()) + "\n")
-            file.write("//   Number of Elements: " + str(self.NumberOfElements()) + "\n")
-            file.write("//   Number of Conditions: " + str(self.NumberOfConditions()) + "\n")
+        if self.is_properly_initialized:
+            if self.mesh_dict_used_for_assembly != None:
+                if self.mesh_dict["write_smp"]: 
+                    file.write("// SubModelPart " + self.smp_info_dict["smp_name"] + "\n")
+                    file.write("//   Number of Nodes: " + str(self.NumberOfNodes()) + "\n")
+                    file.write("//   Number of Elements: " + str(self.NumberOfElements()) + "\n")
+                    file.write("//   Number of Conditions: " + str(self.NumberOfConditions()) + "\n")
+            else:
+                raise RuntimeError("MeshSubmodelPart was not assembled!")
+        else:
+            raise RuntimeError("MeshSubmodelPart is not properly initialized!")

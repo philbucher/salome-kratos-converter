@@ -352,6 +352,26 @@ class GeometricEntitySalome:
         self._SetNodeList(node_list)
 
 
+    def __str__(self):
+        stringbuf = "GeometricEntitySalome | "
+        stringbuf += "salome_ID: " + str(self.salome_ID)
+        stringbuf += "; salome_identifier: " + str(self.salome_identifier)
+        stringbuf += "; node_list: " + str(self.node_list)
+        return stringbuf
+    
+    __repr__ = __str__
+
+
+    def __eq__(self, Other):
+        if self.salome_ID != Other.salome_ID:
+            return False
+        if self.salome_identifier != Other.salome_identifier:
+            return False
+        if self.node_list != Other.node_list:
+            return False
+        return True
+
+
     def _SetNodeList(self, salome_node_list):
         CorrectNodeListOrder(salome_node_list, self.salome_identifier)
         self.node_list = salome_node_list
