@@ -33,7 +33,7 @@ class TestKratosEntity(unittest.TestCase):
         """
         Here the KratosEntity is an "Element" or "Condition", sine it is constructed with a Geometrical Entity
         """
-        geom_entity = global_utils.GeometricEntitySalome(35, 102, [1,5,9])
+        geom_entity = global_utils.GeometricEntity(35, 102, [1,5,9])
         obj2test = class2test(
             salome_entity=geom_entity, name="SomeOtherName", property_ID=2)
         write_line = obj2test.GetWriteLine(
@@ -88,13 +88,13 @@ class MeshSubmodelPart(unittest.TestCase):
         self.nodes = {1: [0.0, 0.0, 0.0], 2: [5.0, 0.0, 0.0], 3: [5.0, 1.0, 0.0],
                       4: [0.0, 1.0, 0.0], 5: [0.2, 0.0, 0.0], 6: [0.4, 0.0, 0.0]}
 
-        entity_1 = global_utils.GeometricEntitySalome(23, 102, [1,2])
-        entity_2 = global_utils.GeometricEntitySalome(24, 102, [2,3])
-        entity_3 = global_utils.GeometricEntitySalome(25, 102, [3,4])
-        entity_4 = global_utils.GeometricEntitySalome(27, 102, [4,1])
+        entity_1 = global_utils.GeometricEntity(23, 102, [1,2])
+        entity_2 = global_utils.GeometricEntity(24, 102, [2,3])
+        entity_3 = global_utils.GeometricEntity(25, 102, [3,4])
+        entity_4 = global_utils.GeometricEntity(27, 102, [4,1])
 
-        entity_5 = global_utils.GeometricEntitySalome(29, 204, [4,1,5,6])
-        entity_6 = global_utils.GeometricEntitySalome(28, 204, [4,1,2,3])
+        entity_5 = global_utils.GeometricEntity(29, 204, [4,1,5,6])
+        entity_6 = global_utils.GeometricEntity(28, 204, [4,1,2,3])
 
         self.geom_entities = {102 : [entity_1, entity_2, entity_3, entity_4], 204 : [entity_5, entity_6]}
 

@@ -1,12 +1,12 @@
 '''
-  ___   _   _    ___  __  __ ___    _  _____    _ _____ ___  ___  
- / __| /_\ | |  / _ \|  \/  | __|__| |/ / _ \  /_\_   _/ _ \/ __| 
- \__ \/ _ \| |_| (_) | |\/| | _|___| ' <|   / / _ \| || (_) \__ \ 
- |___/_/ \_\____\___/|_|  |_|___|  |_|\_\_|_\/_/ \_\_| \___/|___/ 
-  / __|___ _ ___ _____ _ _| |_ ___ _ _                            
- | (__/ _ \ ' \ V / -_) '_|  _/ -_) '_|                           
-  \___\___/_||_\_/\___|_|  \__\___|_|                             
-                                                                  
+  ___   _   _    ___  __  __ ___    _  _____    _ _____ ___  ___
+ / __| /_\ | |  / _ \|  \/  | __|__| |/ / _ \  /_\_   _/ _ \/ __|
+ \__ \/ _ \| |_| (_) | |\/| | _|___| ' <|   / / _ \| || (_) \__ \
+ |___/_/ \_\____\___/|_|  |_|___|  |_|\_\_|_\/_/ \_\_| \___/|___/
+  / __|___ _ ___ _____ _ _| |_ ___ _ _
+ | (__/ _ \ ' \ V / -_) '_|  _/ -_) '_|
+  \___\___/_||_\_/\___|_|  \__\___|_|
+
 
 Salome to Kratos Converter
 Converts *.dat files that contain mesh information to *.mdpa file to be used as input for Kratos Multiphysics.
@@ -31,51 +31,51 @@ else:
     logging.basicConfig(level=logging.INFO)
 
 NODE_IDENTIFIER = 101 # This was made by me, it does not come from SALOME! Cannot start with 0!
-SALOME_IDENTIFIERS = {
-        NODE_IDENTIFIER : "Node", 
+GEOMETRY_IDENTIFIERS = {
+        NODE_IDENTIFIER : "Node",
         102 : "Line",
         203 : "Triangle",
         204 : "Quadrilateral",
         304 : "Tetrahedral",
-        308 : "Hexahedral"        
+        308 : "Hexahedral"
 }
 
 ELEMENTS = {
     "0_Generic" : {
-        102 : [ 
+        102 : [
             "Element2D2N",
         ],
-        203 : [ 
+        203 : [
             "Element2D3N",
             "Element3D3N"
         ],
-        204 : [ 
+        204 : [
             "Element2D4N"
         ],
-        304 : [ 
+        304 : [
             "Element3D4N"
         ],
-        308 : [ 
+        308 : [
             "Element3D8N"
         ],
     },
     "1_Fluid" : {
-        203 : [ 
+        203 : [
             "Element2D3N"
         ],
-        304 : [ 
+        304 : [
             "Element3D4N"
         ]
     },
     "2_Structure" : {
-        NODE_IDENTIFIER : [ 
+        NODE_IDENTIFIER : [
             "NodalConcentratedElement2D1N",
             "NodalConcentratedDampedElement2D1N",
 
             "NodalConcentratedElement3D1N",
             "NodalConcentratedDampedElement3D1N"
         ],
-        102 : [ 
+        102 : [
             "TrussElement3D2N",
             "TrussLinearElement3D2N",
 
@@ -84,7 +84,7 @@ ELEMENTS = {
 
             "SpringDamperElement3D2N"
         ],
-        203 : [ 
+        203 : [
             "SmallDisplacementElement2D3N",
             "TotalLagrangianElement2D3N",
             "UpdatedLagrangianElement2D3N",
@@ -94,14 +94,14 @@ ELEMENTS = {
             "ShellThinElementCorotational3D3N"
             "ShellThickElementCorotational3D3N"
         ],
-        204 : [ 
+        204 : [
             "SmallDisplacementElement2D4N",
             "TotalLagrangianElement2D4N",
             "UpdatedLagrangianElement2D4N",
 
             "PreStressMembraneElement3D4N",
 
-            "ShellThinElementCorotational3D4N", 
+            "ShellThinElementCorotational3D4N",
             "ShellThickElementCorotational3D4N"
         ],
         304 : [
@@ -121,31 +121,31 @@ ELEMENTS = {
 
 CONDITIONS = {
     "0_Generic" : {
-        NODE_IDENTIFIER : [ 
+        NODE_IDENTIFIER : [
             "PointCondition2D1N",
             "PointCondition3D1N"
         ],
-        102 : [  
+        102 : [
             "LineCondition2D2N",
             "LineCondition3D2N"
         ],
-        203 : [ 
-            "SurfaceCondition3D3N"            
+        203 : [
+            "SurfaceCondition3D3N"
         ],
-        204 : [ 
+        204 : [
             "SurfaceCondition3D4N"
         ]
     },
     "1_Fluid" : {
-        102 : [ 
+        102 : [
             "WallCondition2D2N"
         ],
-        203 : [ 
+        203 : [
             "WallCondition3D3N"
         ]
     },
     "2_Structure" : {
-        NODE_IDENTIFIER : [ 
+        NODE_IDENTIFIER : [
             "PointLoadCondition2D1N",
             "PointLoadCondition2D1N",
 
@@ -153,20 +153,20 @@ CONDITIONS = {
 
             "PointTorqueCondition3D1N"
         ],
-        102 : [ 
+        102 : [
             "LineLoadCondition2D2N"
         ],
-        203 : [ 
+        203 : [
             "SurfaceLoadCondition3D3N"
         ],
-        204 : [ 
+        204 : [
             "SurfaceLoadCondition3D4N"
         ]
     }
 }
 
 
-def ReadAndParseFile(file_path):
+def ReadAndParseSalomeDatFile(file_path):
     valid_file = True
     nodes = {}
     geom_entities = {}
@@ -183,34 +183,36 @@ def ReadAndParseFile(file_path):
             if num_nodes == 0:
                 logging.error('No nodes in file \"{}\"'.format(file_path))
                 valid_file = False
-            
+
             if valid_file:
-                
+
                 for line in lines[1:num_nodes+1]:
                     words = line.split()
                     salome_ID = int(words[0])
                     coords = [float(words[1]), float(words[2]), float(words[3])] # X, Y, Z
                     nodes.update({salome_ID : coords})
-                
+
                 geom_entities = {}
 
                 # Read Geometric Objects (Lines, Triangles, Quads, ...)
                 for line in lines[num_nodes+1:]:
                     words = line.split()
                     salome_ID = int(words[0])
-                    salome_identifier = int(words[1]) # get the salome identifier
+                    geometry_identifier = int(words[1]) # get the salome identifier
                     node_list = []
                     for i in range(2, len(words)):
                         node_list.append(int(words[i]))
-                    
-                    geom_entity = GeometricEntitySalome(salome_ID,
-                                                salome_identifier,
-                                                node_list)
-                    
-                    if salome_identifier not in geom_entities: # geom entities with this identifier are already existing # TODO don't I have to use .key() here?
-                        geom_entities[salome_identifier] = []
 
-                    geom_entities[salome_identifier].append(geom_entity)
+                    CorrectSalomeNodeListOrder(node_list, geometry_identifier)
+
+                    geom_entity = GeometricEntity(salome_ID,
+                                                  geometry_identifier,
+                                                  node_list)
+
+                    if geometry_identifier not in geom_entities: # geom entities with this identifier are already existing # TODO don't I have to use .key() here?
+                        geom_entities[geometry_identifier] = []
+
+                    geom_entities[geometry_identifier].append(geom_entity)
     except:
         logging.error('Reading File \"{}\" failed!'.format(file_path))
         valid_file = False
@@ -226,7 +228,7 @@ def GetGeneralInfoDict(Version=None):
         general_info_dict.update({"Version" : Version})
     general_info_dict.update({"Date" : localtime})
     general_info_dict.update({"OperatingSystem" : GetOS()})
-    
+
     return general_info_dict
 
 
@@ -245,12 +247,12 @@ def GetOS():
     return os_name
 
 
-def GetEntityType(SalomeIdentifier):
+def GetEntityType(geometry_identifier):
     post_string = "Unknown"
-    if SalomeIdentifier in SALOME_IDENTIFIERS:
-        post_string = SALOME_IDENTIFIERS[SalomeIdentifier]
+    if geometry_identifier in GEOMETRY_IDENTIFIERS:
+        post_string = GEOMETRY_IDENTIFIERS[geometry_identifier]
 
-    return str(SalomeIdentifier) + "_" + post_string
+    return str(geometry_identifier) + "_" + post_string
 
 
 def GetSalomeIdentifier(origin_entity):
@@ -281,14 +283,14 @@ def CorrectMeshDict(mesh_dict):
             corrected_mesh_dict.update({"entity_creation" : DictKeyToInt(mesh_dict["entity_creation"])})
         else:
             corrected_mesh_dict.update({key : val})
-    
-    return corrected_mesh_dict
-  
 
-def CorrectNodeListOrder(salome_node_list, salome_identifier):
+    return corrected_mesh_dict
+
+
+def CorrectSalomeNodeListOrder(salome_node_list, geometry_identifier):
     # This function corrects the order in the node list because for
     # some elements the nodal order is different btw SALOME and Kratos
-    if salome_identifier == 308: # Hexahedral
+    if geometry_identifier == 308: # Hexahedral
         salome_node_list[1], salome_node_list[3] = salome_node_list[3], salome_node_list[1]
         salome_node_list[5], salome_node_list[7] = salome_node_list[7], salome_node_list[5]
 
@@ -303,29 +305,29 @@ def GetDictFromTree(tree):
             item_values = tree.item(child,"values")
             element_name = item_values[0]
             property_ID = item_values[1]
-            salome_identifier = GetSalomeIdentifier(item_values[2])
-            
-            AddEntryToDict(dictionary, salome_identifier, "Element", element_name, property_ID)
+            geometry_identifier = GetSalomeIdentifier(item_values[2])
+
+            AddEntryToDict(dictionary, geometry_identifier, "Element", element_name, property_ID)
 
         if (tree.tag_has("Condition", child)):
             item_values = tree.item(child,"values")
             condition_name = item_values[0]
             property_ID = item_values[1]
-            salome_identifier = GetSalomeIdentifier(item_values[2])
-            
-            AddEntryToDict(dictionary, salome_identifier, "Condition", condition_name, property_ID)
-    
+            geometry_identifier = GetSalomeIdentifier(item_values[2])
+
+            AddEntryToDict(dictionary, geometry_identifier, "Condition", condition_name, property_ID)
+
     return dictionary
-    
-    
-def AddEntryToDict(json_dict, salome_identifier, entity_type, entity_name, property_ID):
-    if salome_identifier not in json_dict["entity_creation"]:
-        json_dict["entity_creation"][salome_identifier] = {}
-        
-    if entity_type not in json_dict["entity_creation"][salome_identifier]:
-        json_dict["entity_creation"][salome_identifier][entity_type] = {}
-            
-    json_dict["entity_creation"][salome_identifier][entity_type].update({entity_name: property_ID})
+
+
+def AddEntryToDict(json_dict, geometry_identifier, entity_type, entity_name, property_ID):
+    if geometry_identifier not in json_dict["entity_creation"]:
+        json_dict["entity_creation"][geometry_identifier] = {}
+
+    if entity_type not in json_dict["entity_creation"][geometry_identifier]:
+        json_dict["entity_creation"][geometry_identifier][entity_type] = {}
+
+    json_dict["entity_creation"][geometry_identifier][entity_type].update({entity_name: property_ID})
 
 def GetDebug():
     return DEBUG
@@ -345,28 +347,31 @@ def LogTiming(log_info, start_time):
 
 
 
-class GeometricEntitySalome:
-    def __init__(self, salome_ID, salome_identifier, node_list):
-        self.salome_ID = salome_ID
-        self.salome_identifier = salome_identifier
-        self._SetNodeList(node_list)
+class GeometricEntity:
+    """
+    This class is a generic geometric entity
+    """
+    def __init__(self, origin_ID, geometry_identifier, node_list):
+        self.origin_ID = origin_ID
+        self.geometry_identifier = geometry_identifier
+        self.node_list = node_list # The order or nodes has to be compatible with Kratos
         self.child_objects = {}
 
 
     def __str__(self):
-        stringbuf = "GeometricEntitySalome | "
-        stringbuf += "salome_ID: " + str(self.salome_ID)
-        stringbuf += "; salome_identifier: " + str(self.salome_identifier)
+        stringbuf = "GeometricEntity | "
+        stringbuf += "origin_ID: " + str(self.origin_ID)
+        stringbuf += "; geometry_identifier: " + str(self.geometry_identifier)
         stringbuf += "; node_list: " + str(self.node_list)
         return stringbuf
-    
+
     __repr__ = __str__
 
 
     def __eq__(self, Other):
-        if self.salome_ID != Other.salome_ID:
+        if self.origin_ID != Other.origin_ID:
             return False
-        if self.salome_identifier != Other.salome_identifier:
+        if self.geometry_identifier != Other.geometry_identifier:
             return False
         if self.node_list != Other.node_list:
             return False
@@ -382,20 +387,17 @@ class GeometricEntitySalome:
         return entity.child_objects[name_entity]
 
 
-    def _SetNodeList(self, salome_node_list):
-        CorrectNodeListOrder(salome_node_list, self.salome_identifier)
-        self.node_list = salome_node_list
-        
-
     def GetNodeList(self):
         return self.node_list
 
 
     def GetID(self):
-        return self.salome_ID
+        return self.origin_ID
 
 
     def Serialize(self):
-        serialized_entity = [self.salome_ID, self.salome_identifier, self.node_list]
+        serialized_entity = [self.origin_ID, self.geometry_identifier, self.node_list]
         return serialized_entity
-        
+
+    def Deserialize(pass):
+        pass

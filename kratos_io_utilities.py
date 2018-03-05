@@ -28,7 +28,7 @@ class KratosEntity:
         if isinstance(salome_entity, int):
             self.is_node = True
 
-        self.origin_entity = salome_entity # int for Node, GeometricEntitySalome for Element/Condition
+        self.origin_entity = salome_entity # int for Node, GeometricEntity for Element/Condition
         self.name = name
         self.property_ID = property_ID
         self.new_ID = -1
@@ -540,7 +540,7 @@ class MeshSubmodelPart:
             salome_identifier = serialized_entity[1]
             node_list         = serialized_entity[2]
 
-            geom_entity = global_utils.GeometricEntitySalome(salome_ID, salome_identifier, node_list)
+            geom_entity = global_utils.GeometricEntity(salome_ID, salome_identifier, node_list)
 
             if salome_identifier not in deserialized_geom_entities_read: # geom entities with this identifier are already existing # TODO don't I have to use .key() here?
                 deserialized_geom_entities_read[salome_identifier] = []
@@ -596,7 +596,7 @@ class MeshSubmodelPart:
                     property_ID = element_dict[element_name]
 
                     for entity in entities:
-                        elem = global_utils.GeometricEntitySalome.CreateNewEntityObject(element_name, Element, entity, property_ID)
+                        elem = global_utils.GeometricEntity.CreateNewEntityObject(element_name, Element, entity, property_ID)
                         self.elements[element_name].append(elem)
 
 
@@ -619,14 +619,14 @@ class MeshSubmodelPart:
                     property_ID = condition_dict[condition_name]
 
                     for entity in entities:
-                        cond = global_utils.GeometricEntitySalome.CreateNewEntityObject(condition_name, Condition, entity, property_ID)
+                        cond = global_utils.GeometricEntity.CreateNewEntityObject(condition_name, Condition, entity, property_ID)
                         self.conditions[condition_name].append(cond)
 
     def _CreateGeometricEntitiesFromNodes(self, node_ids):
         geom_entities = []
 
         for node_id in node_ids:
-            geom_entities.append(global_utils.GeometricEntitySalome(-1, global_utils.NODE_IDENTIFIER, [node_id]))
+            geom_entities.append(global_utils.GeometricEntity(-1, global_utils.NODE_IDENTIFIER, [node_id]))
 
         return geom_entities
 
