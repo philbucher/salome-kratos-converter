@@ -350,6 +350,7 @@ class GeometricEntitySalome:
         self.salome_ID = salome_ID
         self.salome_identifier = salome_identifier
         self._SetNodeList(node_list)
+        self.child_objects = {}
 
 
     def __str__(self):
@@ -370,6 +371,15 @@ class GeometricEntitySalome:
         if self.node_list != Other.node_list:
             return False
         return True
+
+    @staticmethod
+    def CreateNewEntityObject(name_entity, class_object, entity, propID):
+        ''' This function does create an object and saves a weak ref to it '''
+        # TODO improve !!!
+        if name_entity not in entity.child_objects.keys():
+            entity.child_objects[name_entity] = class_object(entity, name_entity, propID)
+
+        return entity.child_objects[name_entity]
 
 
     def _SetNodeList(self, salome_node_list):

@@ -1,12 +1,12 @@
 '''
-  ___   _   _    ___  __  __ ___    _  _____    _ _____ ___  ___  
- / __| /_\ | |  / _ \|  \/  | __|__| |/ / _ \  /_\_   _/ _ \/ __| 
- \__ \/ _ \| |_| (_) | |\/| | _|___| ' <|   / / _ \| || (_) \__ \ 
- |___/_/ \_\____\___/|_|  |_|___|  |_|\_\_|_\/_/ \_\_| \___/|___/ 
-  / __|___ _ ___ _____ _ _| |_ ___ _ _                            
- | (__/ _ \ ' \ V / -_) '_|  _/ -_) '_|                           
-  \___\___/_||_\_/\___|_|  \__\___|_|                             
-                                                                  
+  ___   _   _    ___  __  __ ___    _  _____    _ _____ ___  ___
+ / __| /_\ | |  / _ \|  \/  | __|__| |/ / _ \  /_\_   _/ _ \/ __|
+ \__ \/ _ \| |_| (_) | |\/| | _|___| ' <|   / / _ \| || (_) \__ \
+ |___/_/ \_\____\___/|_|  |_|___|  |_|\_\_|_\/_/ \_\_| \___/|___/
+  / __|___ _ ___ _____ _ _| |_ ___ _ _
+ | (__/ _ \ ' \ V / -_) '_|  _/ -_) '_|
+  \___\___/_||_\_/\___|_|  \__\___|_|
+
 
 Salome to Kratos Converter
 Converts *.dat files that contain mesh information to *.mdpa file to be used as input for Kratos Multiphysics.
@@ -36,7 +36,7 @@ import logging
 # Project imports
 import converter_gui as gui
 import converter_gui_utilities as utils
-import kratos_utilities as kratos_utils
+import kratos_io_utilities as kratos_utils
 
 
 def main():
@@ -45,8 +45,8 @@ def main():
     model_part = kratos_utils.MainModelPart()
     root = tkinter.Tk()
     gui.GUIObject(root, model_part)
-    root.mainloop()  
+    root.mainloop()
 
 
 if __name__ == '__main__':
-    main()  
+    main()
