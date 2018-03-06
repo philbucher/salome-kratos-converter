@@ -18,7 +18,6 @@ Intended for non-commercial use in research
 # Global Variables
 DEBUG = False          # Set this Variable to "True" for debugging
 LOG_TIMING = True
-READABLE_MDPA = True  # Use this to get a nicely formatted mdpa file. Works in most cases, but files are larger (~20%) and mdpa writing takes slightly more time
 
 # Python imports
 import sys
@@ -30,7 +29,7 @@ if DEBUG:
 else:
     logging.basicConfig(level=logging.INFO)
 
-NODE_IDENTIFIER = 101 # This was made by me, it does not come from SALOME! Cannot start with 0!
+NODE_IDENTIFIER = 101 # This was made by me. Cannot start with 0!
 GEOMETRY_IDENTIFIERS = {
         NODE_IDENTIFIER : "Node",
         102 : "Line",
@@ -76,9 +75,13 @@ ELEMENTS = {
             "NodalConcentratedDampedElement3D1N"
         ],
         102 : [
+            "CableElement3D2N",
+
             "TrussElement3D2N",
             "TrussLinearElement3D2N",
 
+            "CrBeamElement2D2N",
+            "CrLinearBeamElement2D2N",
             "CrBeamElement3D2N",
             "CrLinearBeamElement3D2N",
 
@@ -108,13 +111,11 @@ ELEMENTS = {
             "SmallDisplacementElement3D4N",
             "TotalLagrangianElement3D4N",
             "UpdatedLagrangianElement3D4N"
-
         ],
         308 : [
             "SmallDisplacementElement3D8N",
             "TotalLagrangianElement3D8N",
             "UpdatedLagrangianElement3D8N"
-
         ]
     }
 }
@@ -190,7 +191,7 @@ def ReadAndParseSalomeDatFile(file_path):
                     words = line.split()
                     salome_ID = int(words[0])
                     coords = [float(words[1]), float(words[2]), float(words[3])] # X, Y, Z
-                    nodes.update({salome_ID : coords})
+                    nodes.update( {salome_ID : [coords, {}] } )
 
                 geom_entities = {}
 
@@ -332,9 +333,6 @@ def AddEntryToDict(json_dict, geometry_identifier, entity_type, entity_name, pro
 def GetDebug():
     return DEBUG
 
-def GetReadableMDPA():
-    return READABLE_MDPA
-
 def LogInfo(LogInfo):
     logging.info(LogInfo)
 
@@ -351,10 +349,11 @@ class GeometricEntity:
     """
     This class is a generic geometric entity
     """
-    def __init__(self, origin_ID, geometry_identifier, node_list):
+    def __init__(self, origin_ID, geometry_identifier, node_list, entity_data={}):
         self.origin_ID = origin_ID
         self.geometry_identifier = geometry_identifier
         self.node_list = node_list # The order or nodes has to be compatible with Kratos
+        self.entity_data = entity_data # Nodal-, Elemental- or ConditionalData
         self.child_objects = {}
 
 
@@ -377,15 +376,6 @@ class GeometricEntity:
             return False
         return True
 
-    @staticmethod
-    def CreateNewEntityObject(name_entity, class_object, entity, propID):
-        ''' This function does create an object and saves a weak ref to it '''
-        # TODO improve !!!
-        if name_entity not in entity.child_objects.keys():
-            entity.child_objects[name_entity] = class_object(entity, name_entity, propID)
-
-        return entity.child_objects[name_entity]
-
 
     def GetNodeList(self):
         return self.node_list
@@ -395,9 +385,50 @@ class GeometricEntity:
         return self.origin_ID
 
 
+    def HasEntityData(self):
+        return len(self.entity_data) > 1
+
+
+    def GetEntityData(self):
+        return self.entity_data
+
+
+    def GetChildObject(self, name_entity, class_object, propID):
+        """
+        This function checks if it already has a child of the
+        requested name. If not, it creates one and returns it.
+        This is needed if elements or conditions belong to separate
+        SubModelParts in order to not create them multiple times
+        """
+        if name_entity not in self.child_objects.keys():
+            self.child_objects[name_entity] = class_object(self, name_entity, propID)
+
+        return self.child_objects[name_entity]
+
+
     def Serialize(self):
-        serialized_entity = [self.origin_ID, self.geometry_identifier, self.node_list]
+        """ This function serializes the object """
+        serialized_entity = [self.origin_ID,
+                             self.geometry_identifier,
+                             self.node_list,
+                             self.entity_data]
+
         return serialized_entity
 
-    def Deserialize(pass):
-        pass
+    @staticmethod
+    def Deserialize(self, serialized_entity):
+        """
+        This function takes a serialized entity and creates a new
+        class object out of it
+        """
+        origin_ID           = serialized_entity[0]
+        geometry_identifier = serialized_entity[1]
+        node_list           = serialized_entity[2]
+        entity_data         = serialized_entity[3]
+
+        geom_entity = self.__init__(origin_ID,
+                                    geometry_identifier,
+                                    node_list,
+                                    entity_data)
+
+        return geom_entity
