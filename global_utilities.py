@@ -392,6 +392,9 @@ class GeometricEntity:
     def GetEntityData(self):
         return self.entity_data
 
+    def GetGeometryIdentifier(self):
+        return self.geometry_identifier
+
 
     def GetChildObject(self, name_entity, class_object, propID):
         """
@@ -416,7 +419,7 @@ class GeometricEntity:
         return serialized_entity
 
     @staticmethod
-    def Deserialize(self, serialized_entity):
+    def Deserialize(serialized_entity):
         """
         This function takes a serialized entity and creates a new
         class object out of it
@@ -426,9 +429,9 @@ class GeometricEntity:
         node_list           = serialized_entity[2]
         entity_data         = serialized_entity[3]
 
-        geom_entity = self.__init__(origin_ID,
-                                    geometry_identifier,
-                                    node_list,
-                                    entity_data)
+        geom_entity = GeometricEntity(origin_ID,
+                                      geometry_identifier,
+                                      node_list,
+                                      entity_data)
 
         return geom_entity
