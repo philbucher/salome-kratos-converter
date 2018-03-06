@@ -393,8 +393,8 @@ class GUIObject(BaseWindow): # This is the main Window
             writing_successful = False
             mdpa_file_path = utils.GetFilePathSave("mdpa")
             if mdpa_file_path:
-                with open(mdpa_file_path,"w") as mdpa_file:
-                    writing_successful = self.model_part.WriteMesh(mdpa_file)
+                info_text = "Written with SALOME-Kratos Converter"
+                writing_successful = self.model_part.WriteMesh(mdpa_file_path, info_text):
 
             if writing_successful:
                 self.PlotCmdOutput("MDPA-file was written successfully!", "green")

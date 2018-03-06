@@ -216,22 +216,28 @@ class MainModelPart:
 
 
     def WriteMesh(self, mdpa_file_name, info_text=""):
-        if mdpa_file_name.endswith('.mdpa'):
-            mdpa_file_name = mdpa_file_name[:-5]
-        import KratosMultiphysics
+        try:
+            if mdpa_file_name.endswith('.mdpa'):
+                mdpa_file_name = mdpa_file_name[:-5]
+            import KratosMultiphysics
 
-        model_part = KratosMultiphysics.ModelPart()
+            model_part = KratosMultiphysics.ModelPart()
 
-        self.__AssembleMesh(model_part)
+            self.__AssembleMesh(model_part)
 
-        file = open(mdpa_file_name + ".mdpa","w")
-        __WriteModelPartInfo(model_part, file, info_text)
-        file.close()
+            file = open(mdpa_file_name + ".mdpa","w")
+            __WriteModelPartInfo(model_part, file, info_text)
+            file.close()
 
-        # using append bcs some info was written beforehand
-        model_part_io = KratosMultiphysics.ReorderConsecutiveModelPartIO(mdpa_file_name,
-                                                                         KratosMultiphysics.IO.APPEND)
-        model_part_io.WriteModelPart(model_part)
+            # using append bcs some info was written beforehand
+            model_part_io = KratosMultiphysics.ReorderConsecutiveModelPartIO(mdpa_file_name,
+                                                                            KratosMultiphysics.IO.APPEND)
+            model_part_io.WriteModelPart(model_part)
+
+            return True
+
+        except:
+            return False
 
 
     def __AssembleMesh(self, model_part):
@@ -543,3 +549,27 @@ class MeshSubmodelPart:
             return self.smp_info_dict["smp_file_path"]
         else:
             raise RuntimeError("MeshSubmodelPart is not properly initialized!")
+
+
+def __WriteModelPartInfo(model_part,
+                         open_file,
+                         info_text=""):
+    '''
+    Writing some information about the ModelPart to the mdpa file
+    '''
+    import time
+    localtime = time.asctime( time.localtime(time.time()) )
+    open_file.write("// File created on " + localtime + "\n")
+    if info_text != "":
+        open_file.write("// " + info_text + "\n")
+    open_file.write("// Mesh Information:\n")
+    open_file.write("// Number of Nodes: " + str(model_part.NumberOfNodes()) + "\n")
+    open_file.write("// Number of Elements: " + str(model_part.NumberOfElements()) + "\n")
+    open_file.write("// Number of Conditions: " + str(model_part.NumberOfConditions()) + "\n")
+    open_file.write("// Number of SubModelParts: " + str(model_part.NumberOfSubModelParts()) + "\n")
+    for smp in model_part.SubModelParts:
+        open_file.write("// SubModelPart " + smp.Name + "\n")
+        open_file.write("//   Number of Nodes: " + str(smp.NumberOfNodes()) + "\n")
+        open_file.write("//   Number of Elements: " + str(smp.NumberOfElements()) + "\n")
+        open_file.write("//   Number of Conditions: " + str(smp.NumberOfConditions()) + "\n")
+    open_file.write("\n")
