@@ -21,6 +21,7 @@ LOG_TIMING = True
 
 # Python imports
 import sys
+import os
 import time
 import logging
 
@@ -171,6 +172,11 @@ def ReadAndParseSalomeDatFile(file_path):
     valid_file = True
     nodes = {}
     geom_entities = {}
+
+    if not os.path.isfile(file_path):
+        logging.error('File \"{}\" was not found!'.format(file_path))
+
+        return False, None, None
 
     try:
         with open(file_path,"r") as f:
@@ -338,6 +344,9 @@ def LogInfo(LogInfo):
 
 def LogDebug(LogInfo):
     logging.debug(LogInfo)
+
+def LogError(LogInfo):
+    logging.error(LogInfo)
 
 def LogTiming(log_info, start_time):
     if LOG_TIMING:

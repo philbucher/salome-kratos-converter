@@ -238,7 +238,8 @@ class MainModelPart:
 
             return True
 
-        except:
+        except ImportError:
+            global_utils.LogError("Loading Kratos failed!")
             return False
 
 
