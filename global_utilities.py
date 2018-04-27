@@ -383,6 +383,8 @@ class GeometricEntity:
             return False
         if self.node_list != Other.node_list:
             return False
+        if self.entity_data != Other.entity_data:
+            return False
         return True
 
 
@@ -391,11 +393,13 @@ class GeometricEntity:
 
 
     def GetID(self):
+
+        print("RRRR")
         return self.origin_ID
 
 
     def HasEntityData(self):
-        return len(self.entity_data) > 1
+        return len(self.entity_data) > 0
 
 
     def GetEntityData(self):

@@ -74,7 +74,7 @@ class KratosEntity:
         return self.origin_entity.GetNodeList()
 
     def HasEntityData(self):
-        return self.origin_entity.GetEntityData()
+        return self.origin_entity.HasEntityData()
 
     def GetEntityData(self):
         return self.origin_entity.GetEntityData()

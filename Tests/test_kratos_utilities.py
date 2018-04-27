@@ -10,11 +10,24 @@ import global_utilities as global_utils
 class TestKratosEntity(unittest.TestCase):
 
     def _test_GetID(self, class2test):
-        obj2test = class2test(
-            origin_entity=203, name="SomeName", property_ID=5)
 
+        orig_entity = global_utils.GeometricEntity(125, 203, [1,2], {"NodalData" : 123})
+        obj2test = class2test(
+            origin_entity=orig_entity, name="SomeName", property_ID=5)
+
+        #print(obj2test.GetID())
         with self.assertRaises(Exception):
             obj2test.GetID()
+
+    def _test_SetID(self,class2test):
+
+        orig_entity = global_utils.GeometricEntity(125, 203, [1,2], {"NodalData" : 123})
+        obj2test = class2test(
+            origin_entity=orig_entity, name="SomeName", property_ID=5)
+        obj2test.SetID(5)
+
+        self.assertEqual(5,obj2test.GetID())
+
 
     # def _test_GetWriteLineNode(self, class2test):
     #     """
@@ -46,10 +59,33 @@ class TestKratosEntity(unittest.TestCase):
 
     #     self.assertEqual(expected, write_line)
 
+    def _test_HasEntityData(self, class2test):
+
+        orig_entity = global_utils.GeometricEntity(125, 203, [1,2], {"NodalData" : 123})
+        obj2test = class2test(origin_entity=orig_entity, name="SomeName", property_ID=5)
+        self.assertTrue(obj2test.HasEntityData())
+
+    def _test_GetEntityData(self,class2test):
+
+        orig_entity = global_utils.GeometricEntity(125, 203, [1,2],{"NodalData":123})
+        obj2test = class2test(origin_entity=orig_entity, name="SomeName", property_ID=5)
+        self.assertEqual(obj2test.GetEntityData(),{"NodalData":123})
+
+    def _test_GetNodeList(self,class2test):
+
+        orig_entity = global_utils.GeometricEntity(125, 203, [1,2])
+        obj2test = class2test(origin_entity=orig_entity, name="SomeName", property_ID=5)
+        self.assertEqual(obj2test.GetNodeList(), [1,2])
+
     def _execute_entity_tests(self, class2test):
+
         self._test_GetID(class2test)
+        self._test_SetID(class2test)
         # self._test_GetWriteLineNode(class2test)
         # self._test_GetWriteLineGeomEntity(class2test)
+        self._test_HasEntityData(class2test)
+        self._test_GetEntityData(class2test)
+        self._test_GetNodeList(class2test)
 
     def test_KratosEntity(self):
         class2test = kratos_utils.KratosEntity # "Class-Pointer"
@@ -65,7 +101,6 @@ class TestKratosEntity(unittest.TestCase):
         class2test = kratos_utils.Condition  # "Class-Pointer"
 
         self._execute_entity_tests(class2test)
-
 
 
 class TestMainModelPart(unittest.TestCase):
@@ -203,7 +238,7 @@ class MeshSubmodelPart(unittest.TestCase):
         self.assertDictEqual(smp_dict_new, obj2test.GetInfoDict())
         self.assertDictEqual(mesh_dict_new, obj2test.GetMeshInfoDict())
 
-    def test_Serialize(self):
+    def _test_Serialize(self):
         obj2test = kratos_utils.MeshSubmodelPart()
 
         with self.assertRaises(RuntimeError): # Throws bcs the obj2test is not properly initialized!
