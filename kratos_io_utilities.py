@@ -34,10 +34,13 @@ class KratosEntity:
         stringbuf = "Name: " + self.name
         stringbuf += "; PropID: " + str(self.property_ID)
         stringbuf += "; NewId: " + str(self.new_ID)
+        '''
         if self.is_node:
             stringbuf += "; OriginEntity: " + str(self.origin_entity)
         else:
             stringbuf += "; OriginEntity: " + str(self.origin_entity)
+        '''
+        stringbuf += "; OriginEntity: " + str(self.origin_entity)
 
         return stringbuf
 
@@ -362,12 +365,10 @@ class MainModelPart:
         kratos_smp.AddConditions(smp.GetConditionIds())
 
 
-
 class MeshSubmodelPart:
     def __init__(self):
         self.is_properly_initialized = False
         self.is_assembled = False
-
 
     def _Initialize(self):
         self.nodes = {}

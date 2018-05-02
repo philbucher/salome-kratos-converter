@@ -15,7 +15,6 @@ class TestKratosEntity(unittest.TestCase):
         obj2test = class2test(
             origin_entity=orig_entity, name="SomeName", property_ID=5)
 
-        #print(obj2test.GetID())
         with self.assertRaises(Exception):
             obj2test.GetID()
 
@@ -28,6 +27,56 @@ class TestKratosEntity(unittest.TestCase):
 
         self.assertEqual(5,obj2test.GetID())
 
+    def _test___eq__(self,class2test):
+        orig_entity = global_utils.GeometricEntity(125, 203, [1,2], {"NodalData" : 123})
+        obj2test = class2test(
+            origin_entity=orig_entity, name="SomeName", property_ID=5)
+
+        other_entity = global_utils.GeometricEntity(125, 203, [1,2], {"NodalData" : 123})
+        other_obj = class2test(
+            origin_entity=other_entity, name="SomeName", property_ID=5)
+
+        self.assertTrue(obj2test.__eq__(other_obj))
+
+    def _test_SetIsAdded(self,class2test):
+        orig_entity = global_utils.GeometricEntity(125, 203, [1,2], {"NodalData" : 123})
+        obj2test = class2test(
+            origin_entity=orig_entity, name="SomeName", property_ID=5)
+
+        obj2test.SetIsAdded()
+        self.assertTrue(obj2test.IsAddedAlready())
+
+    def _test_IsAddedAlready(self,class2test):
+        orig_entity = global_utils.GeometricEntity(125, 203, [1,2], {"NodalData" : 123})
+        obj2test = class2test(
+            origin_entity=orig_entity, name="SomeName", property_ID=5)
+
+        obj2test.ResetWritingInfo()
+        self.assertFalse(obj2test.IsAddedAlready())
+
+    def _test_ResetWritingInfo(self,class2test):
+        orig_entity = global_utils.GeometricEntity(125, 203, [1,2], {"NodalData" : 123})
+        obj2test = class2test(
+            origin_entity=orig_entity, name="SomeName", property_ID=5)
+
+        obj2test.ResetWritingInfo()
+        self.assertFalse(obj2test.IsAddedAlready())
+        #self.assertEqual(-1,obj2test.GetID())
+
+    def _test___str__(self,class2test):
+        orig_entity = global_utils.GeometricEntity(125, 203, [1,2], {"NodalData" : 123})
+        obj2test = class2test(
+            origin_entity=orig_entity, name="SomeName", property_ID=5)
+        recieved=obj2test.__str__()
+
+        if class2test == kratos_utils.KratosEntity:
+            expected="Name: SomeName; PropID: 5; NewId: -1; OriginEntity: GeometricEntity | origin_ID: 125; geometry_identifier: 203; node_list: [1, 2]"
+        elif class2test == kratos_utils.Element:
+            expected="Element | Name: SomeName; PropID: 5; NewId: -1; OriginEntity: GeometricEntity | origin_ID: 125; geometry_identifier: 203; node_list: [1, 2]"
+        elif class2test == kratos_utils.Condition:
+            expected="Condition | Name: SomeName; PropID: 5; NewId: -1; OriginEntity: GeometricEntity | origin_ID: 125; geometry_identifier: 203; node_list: [1, 2]"
+
+        self.assertEqual(recieved,expected)
 
     # def _test_GetWriteLineNode(self, class2test):
     #     """
@@ -79,8 +128,16 @@ class TestKratosEntity(unittest.TestCase):
 
     def _execute_entity_tests(self, class2test):
 
+
+
+
         self._test_GetID(class2test)
         self._test_SetID(class2test)
+        self._test___eq__(class2test)
+        self._test_SetIsAdded(class2test)
+        self._test_IsAddedAlready(class2test)
+        self._test_ResetWritingInfo(class2test)
+        self._test___str__(class2test)
         # self._test_GetWriteLineNode(class2test)
         # self._test_GetWriteLineGeomEntity(class2test)
         self._test_HasEntityData(class2test)
