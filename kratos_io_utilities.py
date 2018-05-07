@@ -22,6 +22,8 @@ import time
 # Project imports
 import global_utilities as global_utils
 
+READABLE_MDPA = True
+
 class KratosEntity:
     def __init__(self, origin_entity, name, property_ID):
         self.origin_entity = origin_entity
@@ -108,10 +110,10 @@ class Condition(KratosEntity):
 
 class MainModelPart:
     def __init__(self):
-        self._Initialize()
+        self.__Initialize()
 
 
-    def _Initialize(self):
+    def __Initialize(self):
         self.sub_model_parts = {}
         self.mesh_read = False
 
@@ -126,7 +128,7 @@ class MainModelPart:
 
 
     def Reset(self):
-        self._Initialize()
+        self.__Initialize()
 
 
     def SubModelPartNameExists(self, smp_name):
@@ -261,7 +263,7 @@ class MainModelPart:
         open_file.write("// Number of Elements: " + str(model_part.NumberOfElements()) + "\n")
         open_file.write("// Number of Conditions: " + str(model_part.NumberOfConditions()) + "\n")
         open_file.write("// Number of SubModelParts: " + str(model_part.NumberOfSubModelParts()) + "\n")
-        for smp in model_part.SubModelParts:
+        for smp in model_part.SubModelParts: # TODO sort
             open_file.write("// SubModelPart " + smp.Name + "\n")
             open_file.write("//   Number of Nodes: " + str(smp.NumberOfNodes()) + "\n")
             open_file.write("//   Number of Elements: " + str(smp.NumberOfElements()) + "\n")
@@ -367,170 +369,111 @@ class MainModelPart:
 
 class MeshSubmodelPart:
     def __init__(self):
+        """Constructor of the MeshSubModelPart
+        Sets some internal variables
+        """
         self.is_properly_initialized = False
         self.is_assembled = False
 
-    def _Initialize(self):
+
+    def __InitializeMesh(self):
+        """This function initializes the member variables for the mesh
+        """
         self.nodes = {}
         self.elements = {}
         self.conditions = {}
 
 
     def FillWithEntities(self, smp_info_dict, mesh_dict, nodes_read, geom_entities_read):
+        """This function fills the MeshSubModelPart with entities
+        This function has to be called before other operations such
+        as assembling can be performed
+        """
+        self.__ValidateSMPInfoDict(smp_info_dict)
         self.smp_info_dict = smp_info_dict
+
+        self.__ValidateMeshDict(mesh_dict)
         self.mesh_dict = mesh_dict
+
         self.nodes_read = nodes_read
         self.geom_entities_read = geom_entities_read
-        self._Initialize()
         self.is_properly_initialized = True
 
 
     def Update(self, smp_info_dict, mesh_dict):
-        if self.is_properly_initialized:
-            self.smp_info_dict = smp_info_dict
-            self.mesh_dict = mesh_dict
-            self.is_assembled = False
-        else:
-            raise RuntimeError("MeshSubmodelPart is not properly initialized!")
+        """This function updates the MeshSubModelPart
+        E.g. if different Elements/Conditions should
+        be created from the Geometric Entities
+        """
+        self.__CheckIsProperlyInitialized()
+
+        self.__ValidateSMPInfoDict(smp_info_dict)
+        self.smp_info_dict = smp_info_dict
+
+        self.__ValidateMeshDict(mesh_dict)
+        self.mesh_dict = mesh_dict
+
+        self.is_assembled = False
 
 
-    def Serialize(self):
-        if self.is_properly_initialized:
-            global_utils.LogDebug("Serializing " + self.smp_info_dict["smp_name"])
-            serialized_smp = {}
+    def __ValidateSMPInfoDict(self, smp_info_dict):
+        """This function adds missing information to the
+        dictionary based on default values.
+        It mimics the "ValidateAndAssignDefaults" function in Kratos
+        """
+        default_smp_info_dict = {
+            "smp_name"      : "PLEASE_SPECIFY_SUBMODELPART_NAME",
+            "smp_file_name" : "default",
+            "smp_file_path" : "default"
+        }
 
-            serialized_smp["submodelpart_information"] = self.smp_info_dict
-            serialized_smp["mesh_information"] = self.mesh_dict
-            serialized_smp["nodes_read"] = self._SerializeNodesRead()
-            serialized_smp["geom_entities_read"] = self._SerializeGeomEntitiesRead()
-
-            return {self.smp_info_dict["smp_name"] : serialized_smp}
-        else:
-            raise RuntimeError("MeshSubmodelPart is not properly initialized!")
-
-
-    def _SerializeNodesRead(self):
-        self._AddNodes() # Update the internal information
-
-        return self.nodes
+        for k,v in default_smp_info_dict.items():
+            if k not in smp_info_dict:
+                smp_info_dict[k] = v # Assigning the default value
 
 
-    def _SerializeGeomEntitiesRead(self):
-        serialized_geom_entities = []
+    def __ValidateMeshDict(self, mesh_dict):
+        """This function adds missing information to the
+        dictionary based on default values.
+        It mimics the "ValidateAndAssignDefaults" function in Kratos
+        """
+        default_mesh_dict = {
+            "entity_creation" : {},
+            "write_smp"       : True
+        }
 
-        for salome_ID in self.geom_entities_read:
-            for entity in self.geom_entities_read[salome_ID]:
-                serialized_geom_entities.append(entity.Serialize())
-
-        return serialized_geom_entities
-
-
-    def Deserialize(self, smp_name, serialized_smp):
-        smp_info_dict, mesh_dict = self._DeserializeDictionary(serialized_smp)
-
-        nodes_read = {}
-        geom_entities_read = {}
-        if "nodes_read" in serialized_smp:
-            nodes_read  = self._DeserializeNodesRead(serialized_smp["nodes_read"])
-            if "geom_entities_read" in serialized_smp: # Geometric Entities can only exist if there are nodes!
-                geom_entities_read = self._DeserializeGeomEntitiesRead(serialized_smp["geom_entities_read"])
-
-        self.FillWithEntities(smp_info_dict, mesh_dict, nodes_read, geom_entities_read)
-
-        global_utils.LogDebug("Deserialized " + smp_name)
-
-
-    def _DeserializeDictionary(self, serialized_smp):
-        # concert the keys to strings (has to be done bcs json converts ints to string)
-        if not "submodelpart_information" in serialized_smp:
-            raise RuntimeError("\"submodelpart_information\" is not in serialized SubModelPart!")
-
-        if not "mesh_information" in serialized_smp:
-            raise RuntimeError("\"mesh_information\" is not in serialized SubModelPart!")
-
-        mesh_dict = global_utils.CorrectMeshDict(serialized_smp["mesh_information"])
-
-        return serialized_smp["submodelpart_information"], mesh_dict
-
-
-    def _DeserializeNodesRead(self, serialized_nodes_read):
-        return global_utils.DictKeyToInt(serialized_nodes_read) # Nodes don't need deserialization
-
-
-    def _DeserializeGeomEntitiesRead(self, serialized_geom_entities_read):
-        deserialized_geom_entities_read = {}
-
-        for serialized_entity in serialized_geom_entities_read:
-            geom_entity = global_utils.GeometricEntity.Deserialize(serialized_entity)
-
-            geometry_identifier = geom_entity.GetGeometryIdentifier()
-
-            if geometry_identifier not in deserialized_geom_entities_read.keys(): # geom entities with this identifier are already existing # TODO don't I have to use .key() here?
-                deserialized_geom_entities_read[geometry_identifier] = []
-
-            deserialized_geom_entities_read[geometry_identifier].append(geom_entity)
-
-        return deserialized_geom_entities_read
-
-
-    def GetGeomEntites(self):
-        return self.geom_entities_read
-
-    def GetNodeIds(self):
-        if self.is_properly_initialized:
-            if self.is_assembled:
-                return list(self.nodes.keys())
-            else:
-                raise RuntimeError("MeshSubmodelPart was not assembled!")
-        else:
-            raise RuntimeError("MeshSubmodelPart is not properly initialized!")
-
-    def GetElementIds(self):
-        return self.__GetGeometricEntityIds(self.elements)
-
-
-    def GetConditionIds(self):
-        return self.__GetGeometricEntityIds(self.conditions)
-
-
-    def __GetGeometricEntityIds(self, entities):
-        if self.is_properly_initialized:
-            if self.is_assembled:
-                entity_ids = []
-                for entities_per_name in entities.values():
-                    for entity in entities_per_name:
-                        entity_ids.append(entity.GetID())
-
-                return sorted(entity_ids)
-            else:
-                raise RuntimeError("MeshSubmodelPart was not assembled!")
-        else:
-            raise RuntimeError("MeshSubmodelPart is not properly initialized!")
+        for k,v in default_mesh_dict.items():
+            if k not in mesh_dict:
+                mesh_dict[k] = v # Assigning the default value
 
 
     def Assemble(self):
-        if self.is_properly_initialized:
-            # This function creates the Kratos entities from the read entities
-            # that are defined in it's dictionary
-            self._AddNodes()
-            self._AddElements()
-            self._AddConditions()
+        """This function assembles the entities in the MeshSubModelPart
+        After this operation the Object is ready to write it's
+        entities to an mdpa file
+        """
+        self.__CheckIsProperlyInitialized()
+        self.__InitializeMesh()
 
-            self.is_assembled = True
-        else:
-            raise RuntimeError("MeshSubmodelPart is not properly initialized!")
+        # This function creates the Kratos entities from the read entities
+        # that are defined in it's dictionary
+        self.__AddNodes()
+        self.__AddElements()
+        self.__AddConditions()
+
+        self.is_assembled = True
 
 
-    def _AddNodes(self):
+    def __AddNodes(self):
         self.nodes = self.nodes_read
 
 
-    def _AddElements(self):
+    def __AddElements(self):
         self.elements.clear()
 
         for geometry_identifier in self.mesh_dict["entity_creation"].keys():
             if geometry_identifier == global_utils.NODE_IDENTIFIER:
-                entities = self._CreateGeometricEntitiesFromNodes(self.nodes)
+                entities = self.__CreateGeometricEntitiesFromNodes(self.nodes)
             else:
                 entities = self.geom_entities_read[geometry_identifier]
 
@@ -540,7 +483,7 @@ class MeshSubmodelPart:
                 for element_name in sorted(element_list):
                     if element_name not in self.elements:
                         self.elements[element_name] = []
-
+                    print(element_dict)
                     property_ID = element_dict[element_name]
 
                     for entity in entities:
@@ -548,12 +491,12 @@ class MeshSubmodelPart:
                         self.elements[element_name].append(elem)
 
 
-    def _AddConditions(self):
+    def __AddConditions(self):
         self.conditions.clear()
 
         for geometry_identifier in self.mesh_dict["entity_creation"].keys():
             if geometry_identifier == global_utils.NODE_IDENTIFIER:
-                entities = self._CreateGeometricEntitiesFromNodes(self.nodes)
+                entities = self.__CreateGeometricEntitiesFromNodes(self.nodes)
             else:
                 entities = self.geom_entities_read[geometry_identifier]
 
@@ -571,7 +514,7 @@ class MeshSubmodelPart:
                         self.conditions[condition_name].append(cond)
 
 
-    def _CreateGeometricEntitiesFromNodes(self, nodes):
+    def __CreateGeometricEntitiesFromNodes(self, nodes):
         geom_entities = []
 
         for node_id, node_data in nodes.items():
@@ -584,34 +527,218 @@ class MeshSubmodelPart:
         return geom_entities
 
     def GetMesh(self):
-        if self.is_properly_initialized:
-            if self.is_assembled:
-                return self.nodes, self.elements, self.conditions
-            else:
-                raise RuntimeError("MeshSubmodelPart was not assembled!")
-        else:
-            raise RuntimeError("MeshSubmodelPart is not properly initialized!")
+        self.__CheckIsAssembled()
+        return self.nodes, self.elements, self.conditions
+
+    def GetGeomEntites(self): # TODO still needed?
+        return self.geom_entities_read
 
     def GetInfoDict(self):
-        if self.is_properly_initialized:
-            return self.smp_info_dict
-        else:
-            raise RuntimeError("MeshSubmodelPart is not properly initialized!")
+        self.__CheckIsProperlyInitialized()
+        return self.smp_info_dict
 
     def GetMeshInfoDict(self):
-        if self.is_properly_initialized:
-            return self.mesh_dict
-        else:
-            raise RuntimeError("MeshSubmodelPart is not properly initialized!")
+        self.__CheckIsProperlyInitialized()
+        return self.mesh_dict
 
     def GetFileName(self):
-        if self.is_properly_initialized:
-            return self.smp_info_dict["smp_file_name"]
-        else:
-            raise RuntimeError("MeshSubmodelPart is not properly initialized!")
+        self.__CheckIsProperlyInitialized()
+        return self.smp_info_dict["smp_file_name"]
 
     def GetFilePath(self):
-        if self.is_properly_initialized:
-            return self.smp_info_dict["smp_file_path"]
-        else:
+        self.__CheckIsProperlyInitialized()
+        return self.smp_info_dict["smp_file_path"]
+
+    def NumberOfNodes(self):
+        """Returns the number of Nodes in this SubModelPart
+        """
+        self.__CheckIsAssembled()
+        return len(self.nodes)
+
+    def NumberOfElements(self):
+        """Returns the number of Elements in this SubModelPart
+        """
+        self.__CheckIsAssembled()
+        return sum([len(val) for val in self.elements.values()])
+
+    def NumberOfConditions(self):
+        """Returns the number of Conditions in this SubModelPart
+        """
+        self.__CheckIsAssembled()
+        return sum([len(val) for val in self.conditions.values()])
+
+    def WriteMesh(self, file):
+        """This function writes the SubModelPart to the
+        mdpa-file (If wanted).
+        """
+        self.__CheckIsAssembled()
+
+        # Write Header
+        if self.mesh_dict["write_smp"]:
+            smp_name = self.smp_info_dict["smp_name"]
+            file.write("Begin SubModelPart " + smp_name + "\n")
+
+            space = ""
+            if READABLE_MDPA:
+                space = "\t"
+
+            self.__WriteNodes(file, space)
+            self.__WriteElements(file, space)
+            self.__WriteConditions(file, space)
+
+            file.write("End SubModelPart // " + smp_name + "\n\n")
+
+
+    def __WriteNodes(self, file, space):
+        """This function write the SubModelPartNodes to the
+        mdpa-file.
+        Note that these are only the Ids of the Nodes
+        """
+        self.__CheckIsAssembled()
+
+        file.write(space + "Begin SubModelPartNodes\n")
+
+        for ID in sorted(self.nodes.keys()):
+            file.write(space + space + str(ID) + "\n")
+
+        file.write(space + "End SubModelPartNodes\n")
+
+
+    def __WriteElements(self, file, space):
+        """This function write the SubModelPartElements to the
+        mdpa-file.
+        """
+        self.__WriteEntityIds(file, space, "Elements", self.elements)
+
+
+    def __WriteConditions(self, file, space):
+        """This functin write the SubModelPartConditions to the
+        mdpa-file.
+        """
+        self.__WriteEntityIds(file, space, "Conditions", self.conditions)
+
+
+    def __WriteEntityIds(self, file, space, entity_type_name, entities):
+        """This function writes the Ids of the entities to the
+        mdpa file.
+        Note that these are only the Ids of the entities
+        """
+        self.__CheckIsAssembled()
+
+        smp_entities_name = "SubModelPart" + entity_type_name
+
+        file.write(space + "Begin " + smp_entities_name + "\n")
+
+        for entity_name in sorted(entities.keys()):
+            for entity in entities[entity_name]:
+                file.write(space + space + str(entity.GetID()) + "\n")
+
+        file.write(space + "End " + smp_entities_name + "\n")
+
+
+    def WriteMeshInfo(self, file):
+        """This function is called by the parent class to write info about this
+        SubModelPart to the header of the mdpa-file
+        """
+        self.__CheckIsAssembled()
+        if self.mesh_dict["write_smp"]:
+            file.write("// SubModelPart " + self.smp_info_dict["smp_name"] + "\n")
+            file.write("//   Number of Nodes: " + str(self.NumberOfNodes()) + "\n")
+            file.write("//   Number of Elements: " + str(self.NumberOfElements()) + "\n")
+            file.write("//   Number of Conditions: " + str(self.NumberOfConditions()) + "\n")
+
+
+    def __CheckIsAssembled(self):
+        """This function checks if the MeshSubModelPart has been assembled
+        It is used internally to ensure that the MeshSubModelPart is assembled
+        """
+        self.__CheckIsProperlyInitialized()
+        if not self.is_assembled:
+            raise RuntimeError("MeshSubmodelPart was not assembled!")
+
+
+    def __CheckIsProperlyInitialized(self):
+        """This function checks if the MeshSubModelPart has been properly initialized
+        It is used internally to ensure that the MeshSubModelPart is properly initialized
+        """
+        if not self.is_properly_initialized:
             raise RuntimeError("MeshSubmodelPart is not properly initialized!")
+
+    ##############################################
+    ##### Functions related to Serialization #####
+    ##############################################
+    def Serialize(self):
+        self.__CheckIsProperlyInitialized()
+
+        global_utils.LogDebug("Serializing " + self.smp_info_dict["smp_name"])
+        serialized_smp = {}
+
+        serialized_smp["submodelpart_information"] = self.smp_info_dict
+        serialized_smp["mesh_information"] = self.mesh_dict
+        serialized_smp["nodes_read"] = self.__SerializeNodesRead()
+        serialized_smp["geom_entities_read"] = self.__SerializeGeomEntitiesRead()
+
+        return {self.smp_info_dict["smp_name"] : serialized_smp}
+
+
+    def __SerializeNodesRead(self):
+        self.__AddNodes() # Update the internal information
+        return self.nodes
+
+
+    def __SerializeGeomEntitiesRead(self):
+        serialized_geom_entities = []
+
+        for salome_ID in self.geom_entities_read:
+            for entity in self.geom_entities_read[salome_ID]:
+                serialized_geom_entities.append(entity.Serialize())
+
+        return serialized_geom_entities
+
+
+    def Deserialize(self, smp_name, serialized_smp):
+        smp_info_dict, mesh_dict = self.__DeserializeDictionary(serialized_smp)
+
+        nodes_read = {}
+        geom_entities_read = {}
+        if "nodes_read" in serialized_smp:
+            nodes_read  = self.__DeserializeNodesRead(serialized_smp["nodes_read"])
+            if "geom_entities_read" in serialized_smp: # Geometric Entities can only exist if there are nodes!
+                geom_entities_read = self.__DeserializeGeomEntitiesRead(serialized_smp["geom_entities_read"])
+
+        self.FillWithEntities(smp_info_dict, mesh_dict, nodes_read, geom_entities_read)
+
+        global_utils.LogDebug("Deserialized " + smp_name)
+
+
+    def __DeserializeDictionary(self, serialized_smp):
+        # concert the keys to strings (has to be done bcs json converts ints to string)
+        if not "submodelpart_information" in serialized_smp:
+            raise RuntimeError("\"submodelpart_information\" is not in serialized SubModelPart!")
+
+        if not "mesh_information" in serialized_smp:
+            raise RuntimeError("\"mesh_information\" is not in serialized SubModelPart!")
+
+        mesh_dict = global_utils.CorrectMeshDict(serialized_smp["mesh_information"])
+
+        return serialized_smp["submodelpart_information"], mesh_dict
+
+
+    def __DeserializeNodesRead(self, serialized_nodes_read):
+        return global_utils.DictKeyToInt(serialized_nodes_read) # Nodes don't need deserialization
+
+
+    def __DeserializeGeomEntitiesRead(self, serialized_geom_entities_read):
+        deserialized_geom_entities_read = {}
+
+        for serialized_entity in serialized_geom_entities_read:
+            geom_entity = global_utils.GeometricEntity.Deserialize(serialized_entity)
+
+            geometry_identifier = geom_entity.GetGeometryIdentifier()
+
+            if geometry_identifier not in deserialized_geom_entities_read.keys(): # geom entities with this identifier are already existing # TODO don't I have to use .key() here?
+                deserialized_geom_entities_read[geometry_identifier] = []
+
+            deserialized_geom_entities_read[geometry_identifier].append(geom_entity)
+
+        return deserialized_geom_entities_read

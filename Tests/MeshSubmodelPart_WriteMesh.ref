@@ -7,7 +7,7 @@ Begin SubModelPart domain_custom
 		5
 		6
 	End SubModelPartNodes
-	Begin SubModelPartElements 
+	Begin SubModelPartElements
 		1
 		2
 		3
@@ -16,14 +16,14 @@ Begin SubModelPart domain_custom
 		6
 		7
 		8
-	End SubModelPartElements 
-	Begin SubModelPartConditions 
+	End SubModelPartElements
+	Begin SubModelPartConditions
 		1
 		2
 		3
 		4
 		5
 		6
-	End SubModelPartConditions 
+	End SubModelPartConditions
 End SubModelPart // domain_custom
 

@@ -340,6 +340,10 @@ class MeshSubmodelPart(unittest.TestCase):
                                 [23, 102, [1, 2]], [24, 102, [2, 3]], [25, 102, [3, 4]], [27, 102, [4, 1]]],
                                 'mesh_information': self.smp_mesh_dict}}
 
+    def tearDown(self):
+        if os.path.isfile(self.test_file):
+            os.remove(self.test_file)
+
     def _fill_smp(self, SmpToFill):
 
         smp_dict = {'smp_file_name': 'domain', 'smp_name': 'domain_custom', 'smp_file_path':
@@ -361,9 +365,9 @@ class MeshSubmodelPart(unittest.TestCase):
 
         SmpToTest.Assemble()
 
-        # self.assertEqual(6, SmpToTest.NumberOfNodes())
-        # self.assertEqual(8, SmpToTest.NumberOfElements())
-        # self.assertEqual(6, SmpToTest.NumberOfConditions())
+        self.assertEqual(6, SmpToTest.NumberOfNodes())
+        self.assertEqual(8, SmpToTest.NumberOfElements())
+        self.assertEqual(6, SmpToTest.NumberOfConditions())
 
         nodes, elements, conditions = SmpToTest.GetMesh()
 
@@ -476,84 +480,122 @@ class MeshSubmodelPart(unittest.TestCase):
         with self.assertRaises(RuntimeError): # Throws bcs the obj2test is not properly initialized!
             obj2test.GetMeshInfoDict()
 
-    # def test_NumberOfNodes(self):
-    #     obj2test = kratos_utils.MeshSubmodelPart()
+    def test_NumberOfNodes(self):
+        obj2test = kratos_utils.MeshSubmodelPart()
 
-    #     with self.assertRaises(RuntimeError): # Throws bcs the obj2test is not properly initialized!
-    #         obj2test.NumberOfNodes()
+        with self.assertRaises(RuntimeError): # Throws bcs the obj2test is not properly initialized!
+            obj2test.NumberOfNodes()
 
-    # def test_NumberOfElements(self):
-    #     obj2test = kratos_utils.MeshSubmodelPart()
+    def test_NumberOfElements(self):
+        obj2test = kratos_utils.MeshSubmodelPart()
 
-    #     with self.assertRaises(RuntimeError): # Throws bcs the obj2test is not properly initialized!
-    #         obj2test.NumberOfElements()
+        with self.assertRaises(RuntimeError): # Throws bcs the obj2test is not properly initialized!
+            obj2test.NumberOfElements()
 
-    # def test_NumberOfConditions(self):
-    #     obj2test = kratos_utils.MeshSubmodelPart()
+    def test_NumberOfConditions(self):
+        obj2test = kratos_utils.MeshSubmodelPart()
 
-    #     with self.assertRaises(RuntimeError): # Throws bcs the obj2test is not properly initialized!
-    #         obj2test.NumberOfConditions()
+        with self.assertRaises(RuntimeError): # Throws bcs the obj2test is not properly initialized!
+            obj2test.NumberOfConditions()
 
     def test_GetFileName(self):
         obj2test = kratos_utils.MeshSubmodelPart()
 
-        with self.assertRaises(RuntimeError): # Throws bcs the obj2test is not properly initialized!
+        with self.assertRaisesRegex(RuntimeError,"MeshSubmodelPart is not properly initialized!"):
             obj2test.GetFileName()
 
     def test_GetFilePath(self):
         obj2test = kratos_utils.MeshSubmodelPart()
 
-        with self.assertRaises(RuntimeError): # Throws bcs the obj2test is not properly initialized!
+        with self.assertRaisesRegex(RuntimeError,"MeshSubmodelPart is not properly initialized!"):
             obj2test.GetFilePath()
 
-    # def test_WriteMesh(self):
-    #     obj2test = kratos_utils.MeshSubmodelPart()
+    def test_WriteMesh(self):
+        obj2test = kratos_utils.MeshSubmodelPart()
 
-    #     with open(self.test_file, "w") as test_file:
-    #         with self.assertRaises(RuntimeError): # Throws bcs the obj2test is not properly initialized!
-    #             obj2test.WriteMesh(test_file)
+        with open(self.test_file, "w") as test_file:
+            with self.assertRaisesRegex(RuntimeError,"MeshSubmodelPart is not properly initialized!"):
+                obj2test.WriteMesh(test_file)
 
-    #     self._fill_smp(obj2test)
-    #     obj2test.Assemble()
+        self._fill_smp(obj2test)
+        obj2test.Assemble()
 
-    #     nodes, elements, conditions = obj2test.GetMesh()
+        nodes, elements, conditions = obj2test.GetMesh()
 
-    #     # Hackish way to assign new IDs, bcs Elements and Conditions throw if the didn't get assigned a new ID!
-    #     index = 1
-    #     for elem_name in sorted(elements.keys()):
-    #         new_elems = elements[elem_name]
-    #         for i in range(len(new_elems)):
-    #             new_elems[i].new_ID = index
-    #             index +=1
+        # Hackish way to assign new IDs, bcs Elements and Conditions throw if the didn't get assigned a new ID!
+        index = 1
+        for elem_name in sorted(elements.keys()):
+            new_elems = elements[elem_name]
+            for i in range(len(new_elems)):
+                new_elems[i].new_ID = index
+                index +=1
 
-    #     index = 1
-    #     for elem_name in sorted(conditions.keys()):
-    #         new_conds = conditions[elem_name]
-    #         for i in range(len(new_conds)):
-    #             new_conds[i].new_ID = index
-    #             index +=1
+        index = 1
+        for elem_name in sorted(conditions.keys()):
+            new_conds = conditions[elem_name]
+            for i in range(len(new_conds)):
+                new_conds[i].new_ID = index
+                index +=1
 
-    #     with open(self.test_file, "w") as test_file:
-    #         obj2test.WriteMesh(test_file)
+        with open(self.test_file, "w") as test_file:
+            obj2test.WriteMesh(test_file)
 
-    #     self.assertTrue(filecmp.cmp(self.write_mesh_ref_file, self.test_file))
-    #     os.remove(self.test_file)
+        self.assertTrue(filecmp.cmp(self.write_mesh_ref_file, self.test_file))
 
-    # def test_WriteMeshInfo(self):
-    #     obj2test = kratos_utils.MeshSubmodelPart()
+    def _test_WriteMeshInfo(self):
+        obj2test = kratos_utils.MeshSubmodelPart()
 
-    #     with open(self.test_file, "w") as test_file:
-    #         with self.assertRaises(RuntimeError): # Throws bcs the obj2test is not properly initialized!
-    #             obj2test.WriteMeshInfo(test_file)
+        with open(self.test_file, "w") as test_file:
+            with self.assertRaisesRegex(RuntimeError,"MeshSubmodelPart is not properly initialized!"):
+                obj2test.WriteMeshInfo(test_file)
 
-    #     self._fill_smp(obj2test)
-    #     obj2test.Assemble()
+        self._fill_smp(obj2test)
+        obj2test.Assemble()
 
-    #     with open(self.test_file, "w") as test_file:
-    #         obj2test.WriteMeshInfo(test_file)
+        with open(self.test_file, "w") as test_file:
+            obj2test.WriteMeshInfo(test_file)
 
-    #     self.assertTrue(filecmp.cmp(self.write_mesh_info_ref_file, self.test_file))
-    #     os.remove(self.test_file)
+        self.assertTrue(filecmp.cmp(self.write_mesh_info_ref_file, self.test_file))
+
+    def test_CheckIsAssembled(self):
+        obj2test = kratos_utils.MeshSubmodelPart()
+        obj2test.is_properly_initialized = True
+        with self.assertRaisesRegex(RuntimeError,"MeshSubmodelPart was not assembled!"):
+            obj2test.__CheckIsAssembled()
+
+    def test_CheckIsProperlyInitialized(self):
+        obj2test = kratos_utils.MeshSubmodelPart()
+        with self.assertRaisesRegex(RuntimeError,"MeshSubmodelPart is not properly initialized!"):
+            obj2test.__CheckIsProperlyInitialized()
+
+    def test_ValidateSMPInfoDict(self):
+        obj2test = kratos_utils.MeshSubmodelPart()
+
+        # these are the default values
+        default_smp_info_dict = {
+            "smp_name"      : "PLEASE_SPECIFY_SUBMODELPART_NAME",
+            "smp_file_name" : "default",
+            "smp_file_path" : "default"
+        }
+
+        dict2validate = {}
+        obj2test.__ValidateSMPInfoDict(dict2validate)
+
+        self.assertDictEqual(default_smp_info_dict, dict2validate)
+
+    def test_ValidateMeshDict(self):
+        obj2test = kratos_utils.MeshSubmodelPart()
+
+        # these are the default values
+        default_mesh_dict = {
+            "entity_creation" : {},
+            "write_smp"       : True
+        }
+
+        dict2validate = {}
+        obj2test.__ValidateMeshDict(dict2validate)
+
+        self.assertDictEqual(default_mesh_dict, dict2validate)
 
 
 if __name__ == '__main__':
