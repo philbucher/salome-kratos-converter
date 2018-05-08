@@ -1,12 +1,12 @@
 '''
-  ___   _   _    ___  __  __ ___    _  _____    _ _____ ___  ___  
- / __| /_\ | |  / _ \|  \/  | __|__| |/ / _ \  /_\_   _/ _ \/ __| 
- \__ \/ _ \| |_| (_) | |\/| | _|___| ' <|   / / _ \| || (_) \__ \ 
- |___/_/ \_\____\___/|_|  |_|___|  |_|\_\_|_\/_/ \_\_| \___/|___/ 
-  / __|___ _ ___ _____ _ _| |_ ___ _ _                            
- | (__/ _ \ ' \ V / -_) '_|  _/ -_) '_|                           
-  \___\___/_||_\_/\___|_|  \__\___|_|                             
-                                                                  
+  ___   _   _    ___  __  __ ___    _  _____    _ _____ ___  ___
+ / __| /_\ | |  / _ \|  \/  | __|__| |/ / _ \  /_\_   _/ _ \/ __|
+ \__ \/ _ \| |_| (_) | |\/| | _|___| ' <|   / / _ \| || (_) \__ \
+ |___/_/ \_\____\___/|_|  |_|___|  |_|\_\_|_\/_/ \_\_| \___/|___/
+  / __|___ _ ___ _____ _ _| |_ ___ _ _
+ | (__/ _ \ ' \ V / -_) '_|  _/ -_) '_|
+  \___\___/_||_\_/\___|_|  \__\___|_|
+
 
 Salome to Kratos Converter
 Converts *.dat files that contain mesh information to *.mdpa file to be used as input for Kratos Multiphysics.
@@ -19,7 +19,7 @@ Intended for non-commercial use in research
 ### TODO list ###
 # sort selection window by entities (nodes, elements, conditions)
 
-VERSION = 1.1
+VERSION = 2.0
 PREV_USED_DIR = "."
 
 # Python imports
@@ -49,7 +49,7 @@ def MaximizeWindow(window):
     # TODO check which one works for MacOS
     if (global_utils.GetOS() == "linux"):
         window.attributes('-zoomed', True)
-    else:   
+    else:
         window.state('zoomed')
 
 
@@ -67,7 +67,7 @@ def GetFilePathOpen(FileType, name=""):
         name = " for: " + name
 
     initial_directory = GetInitialDirectory()
-        
+
     if (FileType == "dat"):
         file_path = tk.filedialog.askopenfilename(initialdir=initial_directory, title="Open file" + name,filetypes=[("salome mesh","*.dat")])
     elif (FileType == conv_project_file_ending):
@@ -76,13 +76,13 @@ def GetFilePathOpen(FileType, name=""):
         file_path = tk.filedialog.askopenfilename(initialdir=initial_directory, title="Open file" + name,filetypes=[("converter files","*" + conv_scheme_file_ending)])
     else:
         print("Unsupported FileType") # TODO make messagebox
-    
+
     if file_path not in ["", ()]: # () is the output of a cancelled file open dialog
         valid_file = FileExists(file_path)
         global_utils.LogDebug("File Path: " + file_path)
         if valid_file:
             SetInitialDirectory(file_path)
-    
+
     return file_path, valid_file
 
 
@@ -126,12 +126,12 @@ def SetInitialDirectory(FilePath):
 
 
 def PrintLogo():
-    print('''  ___   _   _    ___  __  __ ___    _  _____    _ _____ ___  ___  
- / __| /_\ | |  / _ \|  \/  | __|__| |/ / _ \  /_\_   _/ _ \/ __| 
- \__ \/ _ \| |_| (_) | |\/| | _|___| ' <|   / / _ \| || (_) \__ \ 
- |___/_/ \_\____\___/|_|  |_|___|  |_|\_\_|_\/_/ \_\_| \___/|___/ 
-  / __|___ _ ___ _____ _ _| |_ ___ _ _                            
- | (__/ _ \ ' \ V / -_) '_|  _/ -_) '_|                           
+    print('''  ___   _   _    ___  __  __ ___    _  _____    _ _____ ___  ___
+ / __| /_\ | |  / _ \|  \/  | __|__| |/ / _ \  /_\_   _/ _ \/ __|
+ \__ \/ _ \| |_| (_) | |\/| | _|___| ' <|   / / _ \| || (_) \__ \
+ |___/_/ \_\____\___/|_|  |_|___|  |_|\_\_|_\/_/ \_\_| \___/|___/
+  / __|___ _ ___ _____ _ _| |_ ___ _ _
+ | (__/ _ \ ' \ V / -_) '_|  _/ -_) '_|
   \___\___/_||_\_/\___|_|  \__\___|_|  ''')
     print("   VERSION", VERSION)
 

@@ -24,7 +24,55 @@ import global_utilities as global_utils
 
 READABLE_MDPA = True
 
-class KratosEntity:
+class Node(object):
+    def __init__(self, Id, coordinates, nodal_data={}):
+        self.Id = Id
+        self.coordinates = coordinates
+        self.nodal_data = nodal_data
+
+        if not type(coordinates) == list:
+            raise TypeError('type of "coordinates" should be list, received: ' + str(type(coordinates)))
+        if not len(coordinates) == 3:
+            raise Exception('Coordinates have to be three doubles!')
+        if not type(nodal_data) == dict:
+            raise TypeError('type of "nodal_data" should be dict, received: ' + str(type(nodal_data)))
+
+    def GetId(self):
+        return self.Id
+
+    def GetCoordinates(self):
+        return self.coordinates
+
+    def HasNodalData(self):
+        return len(self.nodal_data) > 0
+
+    def GetNodalData(self):
+        return self.nodal_data
+
+    def Serialize(self):
+        """This function returns the serialized node
+        """
+        serialized_node = [self.Id,
+                           self.coordinates,
+                           self.nodal_data]
+
+        return serialized_node
+
+    @staticmethod
+    def Deserialize(serialized_node):
+        """This function takes a serialized node and creates a new
+        node out of it
+        """
+        Id          = serialized_node[0]
+        coordinates = serialized_node[1]
+        nodal_data  = serialized_node[2]
+
+        node = Node(Id, coordinates, nodal_data)
+
+        return node
+
+
+class KratosEntity(object):
     def __init__(self, origin_entity, name, property_ID):
         self.origin_entity = origin_entity
         self.name = name
@@ -56,6 +104,21 @@ class KratosEntity:
         if self.property_ID != Other.property_ID:
             return False
         return True
+
+    def GetWriteLine(self, format_str, space):
+        # "0" is the Property Placeholder
+        line = format_str.format(str(self.new_ID), str(self.property_ID))
+
+        if self.is_node:
+            line += space + str(self.origin_entity)
+        else:
+            for node in self.origin_entity.GetNodeList():
+                line += space + str(node)
+
+            if DEBUG:
+                line += " // " + str(self.origin_entity.GetID()) # add the origin ID
+
+        return line
 
     def SetIsAdded(self):
         self.is_added_already = True
@@ -115,7 +178,23 @@ class MainModelPart:
 
     def __Initialize(self):
         self.sub_model_parts = {}
+        self.__InitializeMesh()
         self.mesh_read = False
+        self.precision = 12 # Same as in Kratos ("/kratos/includes/gid_io.h")
+        self.num_spaces = 3 # number of spaces in mdpa btw numbers
+
+
+    def __InitializeMesh(self):
+        self.nodes = {} # ID : [Coord_X, Coord_Y, Coord_Z]
+        self.elements = {} # Name : [List]
+        self.conditions = {} # Name : [List]
+        self.node_counter = 1
+        self.element_counter = 1
+        self.condition_counter = 1
+        # Variables for optimizing the size of the mdpa file
+        self.max_node_coord_x = 0
+        self.max_node_coord_y = 0
+        self.max_node_coord_z = 0
 
 
     def GetMeshRead(self):
@@ -141,21 +220,21 @@ class MainModelPart:
 
 
     def FileNameExists(self, file_name):
-        file_name_exists = False
         for smp in self.sub_model_parts.values():
-            if file_name == smp.GetFileName():
-                file_name_exists = True
-
-        return file_name_exists
+            smp_file_path = smp.GetFileName()
+            if smp_file_name != ""
+                if file_name == smp_file_name:
+                    return True
+        return False
 
 
     def FilePathExists(self, file_path):
-        file_path_exists = False
         for smp in self.sub_model_parts.values():
-            if file_path == smp.GetFilePath():
-                file_path_exists = True
-
-        return file_path_exists
+            smp_file_path = smp.GetFilePath()
+            if smp_file_path != ""
+                if file_path == smp_file_path:
+                    return True
+        return False
 
 
     def AssembleMeshInfoDict(self):
@@ -247,9 +326,38 @@ class MainModelPart:
             global_utils.LogError("Loading Kratos failed!")
             return False
 
+    def WriteMesh(self, file, info_text=""):
+        self.__Assemble() # TODO only do this if sth has changed
 
-    def __WriteModelPartInfo(self, model_part,
-                             open_file, info_text=""):
+        start_time = time.time()
+        global_utils.LogInfo("Writing Mesh")
+
+        # Write Header
+        with open(mdpa_file_path,"w") as mdpa_file:
+            self.__WriteMeshInfo(file, info_text)
+            file.write("\nBegin ModelPartData\n//  VARIABLE_NAME value\nEnd ModelPartData\n\n")
+            file.write("Begin Properties 0\nEnd Properties\n\n")
+
+            # Write Nodes
+            self.__WriteNodes(file)
+
+            # Write Elements
+            self.__WriteElements(file)
+
+            # Write Conditions
+            self.__WriteConditions(file)
+
+            # Write SubModelParts
+            for smp_name in sorted(self.sub_model_parts.keys()):
+                smp = self.sub_model_parts[smp_name]
+                smp.WriteMesh(file)
+
+            global_utils.LogTiming("Mesh writing time", start_time)
+
+        return True
+
+
+    def __WriteMeshInfo(self, open_file, info_text=""):
         '''
         Writing some information about the ModelPart to the mdpa file
         '''
@@ -259,65 +367,123 @@ class MainModelPart:
         if info_text != "":
             open_file.write("// " + info_text + "\n")
         open_file.write("// Mesh Information:\n")
-        open_file.write("// Number of Nodes: " + str(model_part.NumberOfNodes()) + "\n")
-        open_file.write("// Number of Elements: " + str(model_part.NumberOfElements()) + "\n")
-        open_file.write("// Number of Conditions: " + str(model_part.NumberOfConditions()) + "\n")
-        open_file.write("// Number of SubModelParts: " + str(model_part.NumberOfSubModelParts()) + "\n")
-        for smp in model_part.SubModelParts: # TODO sort
-            open_file.write("// SubModelPart " + smp.Name + "\n")
-            open_file.write("//   Number of Nodes: " + str(smp.NumberOfNodes()) + "\n")
-            open_file.write("//   Number of Elements: " + str(smp.NumberOfElements()) + "\n")
-            open_file.write("//   Number of Conditions: " + str(smp.NumberOfConditions()) + "\n")
+        open_file.write("// Number of Nodes: " + str(self.NumberOfNodes()) + "\n")
+        open_file.write("// Number of Elements: " + str(self.NumberOfElements()) + "\n")
+        open_file.write("// Number of Conditions: " + str(self.NumberOfConditions()) + "\n")
+        open_file.write("// Number of SubModelParts: " + str(len(self.sub_model_parts)) + "\n")
+        for smp_name in sorted(self.sub_model_parts.keys()):
+            smp = self.sub_model_parts[smp_name]
+            smp.WriteMeshInfo(file)
+
         open_file.write("\n")
 
 
-    def __AssembleMesh(self, model_part):
-        all_nodes = {}
-        all_elements = {}
-        all_conditions = {}
+    def __WriteNodes(self, file):
+        file.write("Begin Nodes\n")
 
-        for smp_name, smp in self.sub_model_parts.items():
+        if READABLE_MDPA:
+            max_ID = max(self.nodes.keys())
+            global_utils.LogDebug("Max Node ID: " + str(max_ID))
+
+            spaces_coords_x = '{:>' + str(len(str(int(self.max_node_coord_x))) + self.precision + self.num_spaces) + '} '
+            spaces_coords_y = '{:>' + str(len(str(int(self.max_node_coord_y))) + self.precision + self.num_spaces) + '} '
+            spaces_coords_z = '{:>' + str(len(str(int(self.max_node_coord_z))) + self.precision + self.num_spaces) + '} '
+            format_str = '{:>' + str(len(str(max_ID))) + '} ' + spaces_coords_x + spaces_coords_y + spaces_coords_z
+        else:
+            format_str = '{} {} {} {}'
+
+        global_utils.LogDebug("Node Format String: " + str(format_str))
+
+        for ID in sorted(list(self.nodes.keys())):
+            coords = self.nodes[ID]
+
+            coords = [round(coords[0], self.precision),
+                      round(coords[1], self.precision),
+                      round(coords[2], self.precision)]
+
+            line = format_str.format(str(ID), coords[0], str(coords[1]), str(coords[2])) + "\n"
+
+            file.write(line)
+
+        file.write("End Nodes\n\n")
+
+
+    def __WriteElements(self, file):
+        if READABLE_MDPA:
+            num_elements = self.NumberOfElements()
+            format_str = '{:>' + str(len(str(num_elements))) + '} {:>' + str(self.num_spaces) + '}'
+            space = "\t"
+        else:
+            format_str = '{} {}'
+            space = " "
+
+        global_utils.LogDebug("Element Format String: " + str(format_str))
+
+        for element_name in sorted(list(self.elements.keys())):
+            file.write("Begin Elements " + element_name + "\n")
+            elements_by_name = self.elements[element_name]
+            for elem in elements_by_name:
+                file.write(elem.GetWriteLine(format_str, space) + "\n")
+
+            file.write("End Elements // " + element_name + "\n\n")
+
+
+    def __WriteConditions(self, file):
+        if READABLE_MDPA:
+            num_conditions = self.NumberOfConditions()
+            format_str = '{:>' + str(len(str(num_conditions))) + '} {:>' + str(self.num_spaces) + '}'
+            space = "\t"
+        else:
+            format_str = '{} {}'
+            space = " "
+
+        global_utils.LogDebug("Condition Format String: " + str(format_str))
+
+        for condition_name in sorted(list(self.conditions.keys())):
+            file.write("Begin Conditions " + condition_name + "\n")
+            conditions_by_name = self.conditions[condition_name]
+            for cond in conditions_by_name:
+                file.write(cond.GetWriteLine(format_str, space) + "\n")
+
+            file.write("End Conditions // " + condition_name + "\n\n")
+
+
+    def __Assemble(self):
+        # TODO Check if this was done before! (same for the submodelparts)
+        start_time = time.time()
+        global_utils.LogInfo("Assembling Mesh")
+        self.__InitializeMesh()
+        for smp_name in sorted(self.sub_model_parts.keys()):
+            smp = self.sub_model_parts[smp_name]
             smp.Assemble()
             smp_nodes, smp_elements, smp_conditions = smp.GetMesh()
-            self.__AssembleNodes(smp_nodes, all_nodes)
-            self.__AssembleGeometricEntities(smp_elements,   all_elements)
-            self.__AssembleGeometricEntities(smp_conditions, all_conditions)
+            self.__AddNodes(smp_nodes)
+            self.__AddElements(smp_elements)
+            self.__AddConditions(smp_conditions)
 
-        self.__AddNodes(all_nodes, model_part)
-        self.__AddGeometricEntities(all_elements, model_part, "Element")
-        self.__AddGeometricEntities(all_conditions, model_part, "Condition")
-
-        for smp_name, smp in self.sub_model_parts.items():
-            self.__AddSubModelPart(smp_name, smp, model_part)
+        global_utils.LogTiming("Mesh assembling time", start_time)
 
 
-    def __AssembleNodes(self, smp_nodes, all_nodes):
+    def __AddNodes(self, smp_nodes):
         for node_ID in smp_nodes.keys():
-            if node_ID in all_nodes.keys():
-                existing_node_coords = all_nodes[node_ID][0]
+            if node_ID in self.nodes.keys():
+                existing_node_coords = self.nodes[node_ID][0]
                 if existing_node_coords != smp_nodes[node_ID][0]:
-                    err_msg =  'Node with ID" ' + str(node_ID) + '" already exists with different coordinates!\n'
-                    err_msg += 'Existing Cooridnates: ' + str(existing_node_coords) + '\n'
-                    err_msg += 'New Coordinates: ' + str(smp_nodes[node_ID])
-                    raise RuntimeError(err_msg)
+                    raise Exception("Node with ID", node_ID, "already exists with different coordinates!")
             else:
-                all_nodes[node_ID] = smp_nodes[node_ID]
+                self.nodes[node_ID] = smp_nodes[node_ID]
+                if READABLE_MDPA:
+                    if smp_nodes[node_ID][0][0] > self.max_node_coord_x: self.max_node_coord_x = smp_nodes[node_ID][0][0]
+                    if smp_nodes[node_ID][0][1] > self.max_node_coord_y: self.max_node_coord_y = smp_nodes[node_ID][0][1]
+                    if smp_nodes[node_ID][0][2] > self.max_node_coord_z: self.max_node_coord_z = smp_nodes[node_ID][0][2]
 
 
-    def __AddNodes(self, all_nodes, model_part):
-        for node_ID in sorted(all_nodes.keys()):
-            this_node = all_nodes[node_ID]
-            node_coords = this_node[0]
-            n_x = node_coords[0]
-            n_y = node_coords[1]
-            n_z = node_coords[2]
-            kratos_node = model_part.CreateNewNode(node_ID, n_x, n_y, n_z) # Id, X, Y, Z
+    def __AddElements(self, smp_elements):
+        self.__AssembleGeometricEntities(smp_elements, self.elements)
 
-            nodal_data = this_node[1]
-            if len(nodal_data) > 0: # NodalData to write is present
-                for var, value in nodal_data.items():
-                    variable = KratosMultiphysics.KratosGlobals.GetVariable(var)
-                    kratos_node.SetSolutionStepValue(variable,0,value)
+
+    def __AddConditions(self, smp_conditions):
+        self.__AssembleGeometricEntities(smp_conditions, self.conditions)
 
 
     def __AssembleGeometricEntities(self, smp_entities, all_entities):
@@ -336,35 +502,103 @@ class MainModelPart:
                     id_index += 1
 
 
-    def __AddGeometricEntities(self, all_entities, model_part, entity_type):
-        if entity_type == "Element":
-            fct_ptr = model_part.CreateNewElement
-        elif entity_type == "Condition":
-            fct_ptr = model_part.CreateNewCondition
-        else:
-            raise Exception("Wrong entity type")
+    # def __AssembleMesh(self, model_part):
+    #     all_nodes = {}
+    #     all_elements = {}
+    #     all_conditions = {}
 
-        prop = model_part.GetProperties()[0]
+    #     for smp_name, smp in self.sub_model_parts.items():
+    #         smp.Assemble()
+    #         smp_nodes, smp_elements, smp_conditions = smp.GetMesh()
+    #         self.__AssembleNodes(smp_nodes, all_nodes)
+    #         self.__AssembleGeometricEntities(smp_elements,   all_elements)
+    #         self.__AssembleGeometricEntities(smp_conditions, all_conditions)
 
-        for entity_name, entities in all_entities.items():
-            for entity in entities:
-                entity_id = entity.GetID()
-                entity_nodes = entity.GetNodeList()
+    #     self.__AddNodes(all_nodes, model_part)
+    #     self.__AddGeometricEntities(all_elements, model_part, "Element")
+    #     self.__AddGeometricEntities(all_conditions, model_part, "Condition")
 
-                kratos_entity = fct_ptr(entity_name, entity_id, entity_nodes, prop)
-
-                if entity.HasEntityData():
-                    for var, value in entity.GetEntityData().items():
-                        variable = KratosMultiphysics.KratosGlobals.GetVariable(var)
-                        kratos_entity.SetValue(variable,0,value)
+    #     for smp_name, smp in self.sub_model_parts.items():
+    #         self.__AddSubModelPart(smp_name, smp, model_part)
 
 
-    def __AddSubModelPart(self, smp_name, smp, model_part):
-        kratos_smp = model_part.CreateSubModelPart(smp_name)
+    # def __AssembleNodes(self, smp_nodes, all_nodes):
+    #     for node_ID in smp_nodes.keys():
+    #         if node_ID in all_nodes.keys():
+    #             existing_node_coords = all_nodes[node_ID][0]
+    #             if existing_node_coords != smp_nodes[node_ID][0]:
+    #                 err_msg =  'Node with ID" ' + str(node_ID) + '" already exists with different coordinates!\n'
+    #                 err_msg += 'Existing Cooridnates: ' + str(existing_node_coords) + '\n'
+    #                 err_msg += 'New Coordinates: ' + str(smp_nodes[node_ID])
+    #                 raise RuntimeError(err_msg)
+    #         else:
+    #             all_nodes[node_ID] = smp_nodes[node_ID]
 
-        kratos_smp.AddNodes(smp.GetNodeIds())
-        kratos_smp.AddElements(smp.GetElementIds())
-        kratos_smp.AddConditions(smp.GetConditionIds())
+
+    # def __AddNodes(self, all_nodes, model_part):
+    #     for node_ID in sorted(all_nodes.keys()):
+    #         this_node = all_nodes[node_ID]
+    #         node_coords = this_node[0]
+    #         n_x = node_coords[0]
+    #         n_y = node_coords[1]
+    #         n_z = node_coords[2]
+    #         kratos_node = model_part.CreateNewNode(node_ID, n_x, n_y, n_z) # Id, X, Y, Z
+
+    #         nodal_data = this_node[1]
+    #         if len(nodal_data) > 0: # NodalData to write is present
+    #             for var, value in nodal_data.items():
+    #                 variable = KratosMultiphysics.KratosGlobals.GetVariable(var)
+    #                 kratos_node.SetSolutionStepValue(variable,0,value)
+
+
+
+
+    # def __AddGeometricEntities(self, all_entities, model_part, entity_type):
+    #     if entity_type == "Element":
+    #         fct_ptr = model_part.CreateNewElement
+    #     elif entity_type == "Condition":
+    #         fct_ptr = model_part.CreateNewCondition
+    #     else:
+    #         raise Exception("Wrong entity type")
+
+    #     prop = model_part.GetProperties()[0]
+
+    #     for entity_name, entities in all_entities.items():
+    #         for entity in entities:
+    #             entity_id = entity.GetID()
+    #             entity_nodes = entity.GetNodeList()
+
+    #             kratos_entity = fct_ptr(entity_name, entity_id, entity_nodes, prop)
+
+    #             if entity.HasEntityData():
+    #                 for var, value in entity.GetEntityData().items():
+    #                     variable = KratosMultiphysics.KratosGlobals.GetVariable(var)
+    #                     kratos_entity.SetValue(variable,0,value)
+
+
+    # def __AddSubModelPart(self, smp_name, smp, model_part):
+    #     kratos_smp = model_part.CreateSubModelPart(smp_name)
+
+    #     kratos_smp.AddNodes(smp.GetNodeIds())
+    #     kratos_smp.AddElements(smp.GetElementIds())
+    #     kratos_smp.AddConditions(smp.GetConditionIds())
+    #
+    def NumberOfNodes(self):
+        return len(self.nodes)
+
+
+    def NumberOfElements(self):
+        num_elements = 0
+        for smp in self.sub_model_parts.values():
+            num_elements += smp.NumberOfElements()
+        return num_elements
+
+
+    def NumberOfConditions(self):
+        num_conditions = 0
+        for smp in self.sub_model_parts.values():
+            num_conditions += smp.NumberOfConditions()
+        return num_conditions
 
 
 class MeshSubmodelPart:
@@ -469,30 +703,15 @@ class MeshSubmodelPart:
 
 
     def __AddElements(self):
-        self.elements.clear()
-
-        for geometry_identifier in self.mesh_dict["entity_creation"].keys():
-            if geometry_identifier == global_utils.NODE_IDENTIFIER:
-                entities = self.__CreateGeometricEntitiesFromNodes(self.nodes)
-            else:
-                entities = self.geom_entities_read[geometry_identifier]
-
-            if "Element" in self.mesh_dict["entity_creation"][geometry_identifier]:
-                element_dict = self.mesh_dict["entity_creation"][geometry_identifier]["Element"]
-                element_list = element_dict.keys()
-                for element_name in sorted(element_list):
-                    if element_name not in self.elements:
-                        self.elements[element_name] = []
-                    print(element_dict)
-                    property_ID = element_dict[element_name]
-
-                    for entity in entities:
-                        elem = entity.GetChildObject(element_name, Element, property_ID)
-                        self.elements[element_name].append(elem)
+        self.__AddGeometricEntities("Element", Element, self.elements)
 
 
     def __AddConditions(self):
-        self.conditions.clear()
+        self.__AddGeometricEntities("Condition", Condition, self.conditions)
+
+
+    def __AddGeometricEntities(self, entity_name, entity_class, entity_container):
+        entity_container.clear()
 
         for geometry_identifier in self.mesh_dict["entity_creation"].keys():
             if geometry_identifier == global_utils.NODE_IDENTIFIER:
@@ -500,25 +719,30 @@ class MeshSubmodelPart:
             else:
                 entities = self.geom_entities_read[geometry_identifier]
 
-            if "Condition" in self.mesh_dict["entity_creation"][geometry_identifier]:
-                condition_dict = self.mesh_dict["entity_creation"][geometry_identifier]["Condition"]
-                condition_list = condition_dict.keys()
-                for condition_name in sorted(condition_list):
-                    if condition_name not in self.conditions:
-                        self.conditions[condition_name] = []
-
-                    property_ID = condition_dict[condition_name]
+            if entity_name in self.mesh_dict["entity_creation"][geometry_identifier]:
+                entity_dict = self.mesh_dict["entity_creation"][geometry_identifier][entity_name]
+                entity_name_list = entity_dict.keys()
+                for ent_name in sorted(entity_name_list):
+                    if ent_name not in entity_container:
+                        entity_container[ent_name] = []
+                    property_ID = entity_dict[ent_name]
 
                     for entity in entities:
-                        cond = entity.GetChildObject(condition_name, Condition, property_ID)
-                        self.conditions[condition_name].append(cond)
+                        new_entity = entity.GetChildObject(ent_name, entity_class, property_ID)
+                        entity_container[ent_name].append(new_entity)
 
 
     def __CreateGeometricEntitiesFromNodes(self, nodes):
+        """This function creates objects of type "GeometricEntity"
+        from Nodes. This is needed for point-based entities in Kratos,
+        e.g. PointLoadCondition, NodalConcentratedElement
+        """
         geom_entities = []
 
         for node_id, node_data in nodes.items():
             nodal_data = node_data[1]
+            if type(nodal_data) != dict:
+                raise Exception("wrong datatype for nodal_data, type received: "+ str(type(nodal_data)))
             geom_entities.append(global_utils.GeometricEntity(-1,
                                                               global_utils.NODE_IDENTIFIER,
                                                               [node_id],
@@ -542,8 +766,10 @@ class MeshSubmodelPart:
         return self.mesh_dict
 
     def GetFileName(self):
-        self.__CheckIsProperlyInitialized()
-        return self.smp_info_dict["smp_file_name"]
+        if self.is_properly_initialized:
+            return self.smp_info_dict["smp_file_name"]
+        else:
+            return ""
 
     def GetFilePath(self):
         self.__CheckIsProperlyInitialized()

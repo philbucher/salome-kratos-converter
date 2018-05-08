@@ -42,11 +42,11 @@ class TestKratosEntity(unittest.TestCase):
         recieved=obj2test.__str__()
 
         if class2test == kratos_utils.KratosEntity:
-            expected="Name: SomeName; PropID: 5; NewId: -1; OriginEntity: GeometricEntity | origin_ID: 125; geometry_identifier: 203; node_list: [1, 2]"
+            expected="Name: SomeName; PropID: 5; NewId: -1; OriginEntity: GeometricEntity | origin_ID: 125; geometry_identifier: 203; node_list: [1, 2]; entity_data: {'NodalData': 123}"
         elif class2test == kratos_utils.Element:
-            expected="Element | Name: SomeName; PropID: 5; NewId: -1; OriginEntity: GeometricEntity | origin_ID: 125; geometry_identifier: 203; node_list: [1, 2]"
+            expected="Element | Name: SomeName; PropID: 5; NewId: -1; OriginEntity: GeometricEntity | origin_ID: 125; geometry_identifier: 203; node_list: [1, 2]; entity_data: {'NodalData': 123}"
         elif class2test == kratos_utils.Condition:
-            expected="Condition | Name: SomeName; PropID: 5; NewId: -1; OriginEntity: GeometricEntity | origin_ID: 125; geometry_identifier: 203; node_list: [1, 2]"
+            expected="Condition | Name: SomeName; PropID: 5; NewId: -1; OriginEntity: GeometricEntity | origin_ID: 125; geometry_identifier: 203; node_list: [1, 2]; entity_data: {'NodalData': 123}"
 
         self.assertEqual(recieved,expected)
 
@@ -128,9 +128,9 @@ class TestMainModelPart(unittest.TestCase):
 
     def setUp(self):
 
-        self.nodes = {1: [0.0, 0.0, 0.0], 2: [5.0, 0.0, 0.0], 3: [5.0, 1.0, 0.0],
-                      4: [0.0, 1.0, 0.0], 5: [0.2, 0.0, 0.0], 6: [0.4, 0.0, 0.0],
-                      7: [1.0, 1.0, 0.0], 8: [0.2, 1.0, 0.0], 9: [0.4, 1.0, 0.0]}
+        self.nodes = {1: [[0.0, 0.0, 0.0],{}], 2: [[5.0, 0.0, 0.0],{}], 3: [[5.0, 1.0, 0.0],{}],
+                      4: [[0.0, 1.0, 0.0],{}], 5: [[0.2, 0.0, 0.0],{}], 6: [[0.4, 0.0, 0.0],{}],
+                      7: [[1.0, 1.0, 0.0],{}], 8: [[0.2, 1.0, 0.0],{}], 9: [[0.4, 1.0, 0.0],{}]}
 
         entity_1 = global_utils.GeometricEntity(23, 102, [1,2])
         entity_2 = global_utils.GeometricEntity(24, 102, [2,3])
@@ -178,11 +178,10 @@ class TestMainModelPart(unittest.TestCase):
 
         self.mp_dict={'domain_custom': self.smp1_mesh_dict}
 
-        self.serialized_mp={'domain_custom': {'geom_entities_read': [[29, 204, [4, 1, 5, 6], {}], [28, 204, [4, 1, 2, 3], {}], [23, 102, [1, 2], {}], [24, 102, [2, 3], {}], [25, 102, [3, 4], {}], [27, 102, [4, 1], {}]],
-                            'nodes_read': {1: [0.0, 0.0, 0.0], 2: [5.0, 0.0, 0.0], 3: [5.0, 1.0, 0.0], 4: [0.0, 1.0, 0.0], 5: [0.2, 0.0, 0.0], 6: [0.4, 0.0, 0.0], 7: [1.0, 1.0, 0.0], 8: [0.2, 1.0, 0.0], 9: [0.4, 1.0, 0.0]},
-                            'submodelpart_information': {'smp_file_path': '/Examples/Structure/Test_1_2D.salome/dat-files/domain.dat', 'smp_name': 'domain_custom', 'smp_file_name': 'domain'},
-                            'mesh_information': {'write_smp': 1, 'entity_creation': {204: {'Condition': {'SurfaceCondition2D4N': '5'}, 'Element': {'ShellThinElement3D4N': '2', 'UpdatedLagrangianElement2D4N': '15'}},
-                             102: {'Condition': {'LineLoadCondition2D2N': '0'}, 'Element': {'TrussElement': '4'}}}}}}
+        self.serialized_mp={'domain_custom': {'nodes_read': {1: [[0.0, 0.0, 0.0], {}], 2: [[5.0, 0.0, 0.0], {}], 3: [[5.0, 1.0, 0.0], {}], 4: [[0.0, 1.0, 0.0], {}], 5: [[0.2, 0.0, 0.0], {}], 6: [[0.4, 0.0, 0.0], {}], 7: [[1.0, 1.0, 0.0], {}], 8: [[0.2, 1.0, 0.0], {}], 9: [[0.4, 1.0, 0.0], {}]},
+                            'submodelpart_information': {'smp_name': 'domain_custom', 'smp_file_name': 'domain', 'smp_file_path': '/Examples/Structure/Test_1_2D.salome/dat-files/domain.dat'}, 'geom_entities_read': [[29, 204, [4, 1, 5, 6], {}], [28, 204, [4, 1, 2, 3], {}], [23, 102, [1, 2], {}], [24, 102, [2, 3], {}], [25, 102, [3, 4], {}], [27, 102, [4, 1], {}]],
+                            'mesh_information': {'entity_creation': {204: {'Condition': {'SurfaceCondition2D4N': '5'}, 'Element': {'ShellThinElement3D4N': '2', 'UpdatedLagrangianElement2D4N': '15'}}, 102: {'Condition': {'LineLoadCondition2D2N': '0'}, 'Element': {'TrussElement': '4'}}}, 'write_smp': 1}}}
+
 
 
     # Incomplete
@@ -293,8 +292,8 @@ class MeshSubmodelPart(unittest.TestCase):
         self.write_mesh_info_ref_file = os.path.join(os.getcwd(), "MeshSubmodelPart_WriteMeshInfo.ref")
         self.test_file = os.path.join(os.getcwd(), "test_file.tmp")
 
-        self.nodes = {1: [0.0, 0.0, 0.0], 2: [5.0, 0.0, 0.0], 3: [5.0, 1.0, 0.0],
-                      4: [0.0, 1.0, 0.0], 5: [0.2, 0.0, 0.0], 6: [0.4, 0.0, 0.0]}
+        self.nodes = {1: [[0.0, 0.0, 0.0], {}], 2: [[5.0, 0.0, 0.0], {}], 3: [[5.0, 1.0, 0.0], {}],
+                      4: [[0.0, 1.0, 0.0], {}], 5: [[0.2, 0.0, 0.0], {}], 6: [[0.4, 0.0, 0.0], {}]}
 
         entity_1 = global_utils.GeometricEntity(23, 102, [1,2])
         entity_2 = global_utils.GeometricEntity(24, 102, [2,3])
@@ -454,6 +453,26 @@ class MeshSubmodelPart(unittest.TestCase):
         obj2test.Deserialize("domain_custom", serialized_smp["domain_custom"])
 
         self._test_smp_for_correctness(obj2test)
+
+    def test_CreateGeometricEntitiesFromNodes(self):
+        obj2test = kratos_utils.MeshSubmodelPart()
+
+        geom_entities_from_nodes = obj2test.__CreateGeometricEntitiesFromNodes(self.nodes)
+
+        reference_geom_entities = [
+            global_utils.GeometricEntity(-1, 101, [1]),
+            global_utils.GeometricEntity(-1, 101, [2]),
+            global_utils.GeometricEntity(-1, 101, [3]),
+            global_utils.GeometricEntity(-1, 101, [4]),
+            global_utils.GeometricEntity(-1, 101, [5]),
+            global_utils.GeometricEntity(-1, 101, [6])
+        ]
+
+        self.assertEqual(len(geom_entities_from_nodes), len(reference_geom_entities))
+
+        for created_entitiy, ref_entity in zip(geom_entities_from_nodes, reference_geom_entities):
+            self.assertEqual(created_entitiy, ref_entity)
+
 
 
     def test_GetGeomEntites(self):

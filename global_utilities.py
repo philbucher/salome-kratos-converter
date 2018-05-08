@@ -371,6 +371,7 @@ class GeometricEntity:
         stringbuf += "origin_ID: " + str(self.origin_ID)
         stringbuf += "; geometry_identifier: " + str(self.geometry_identifier)
         stringbuf += "; node_list: " + str(self.node_list)
+        stringbuf += "; entity_data: " + str(self.entity_data)
         return stringbuf
 
     __repr__ = __str__
