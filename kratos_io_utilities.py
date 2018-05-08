@@ -772,8 +772,10 @@ class MeshSubmodelPart:
             return ""
 
     def GetFilePath(self):
-        self.__CheckIsProperlyInitialized()
-        return self.smp_info_dict["smp_file_path"]
+        if self.is_properly_initialized:
+            return self.smp_info_dict["smp_file_path"]
+        else:
+            return ""
 
     def NumberOfNodes(self):
         """Returns the number of Nodes in this SubModelPart
