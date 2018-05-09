@@ -304,7 +304,7 @@ class MainModelPart:
         return sorted(self.sub_model_parts.keys()) # return sorted bcs it is also sorted in the json format!
 
     def WriteMesh(self, mdpa_file_path, info_text="", readable_mdpa=False): # TODO use this
-        self.__Assemble() # TODO only do this if sth has changed
+        self.__Assemble(readable_mdpa) # TODO only do this if sth has changed
 
         start_time = time.time()
         global_utils.LogInfo("Writing Mesh")
@@ -318,18 +318,18 @@ class MainModelPart:
             mdpa_file.write("Begin Properties 0\nEnd Properties\n\n")
 
             # Write Nodes
-            self.__WriteNodes(mdpa_file)
+            self.__WriteNodes(mdpa_file, readable_mdpa)
 
             # Write Elements
-            self.__WriteElements(mdpa_file)
+            self.__WriteElements(mdpa_file, readable_mdpa)
 
             # Write Conditions
-            self.__WriteConditions(mdpa_file)
+            self.__WriteConditions(mdpa_file, readable_mdpa)
 
             # Write SubModelParts
             for smp_name in sorted(self.sub_model_parts.keys()):
                 smp = self.sub_model_parts[smp_name]
-                smp.WriteMesh(mdpa_file)
+                smp.WriteMesh(mdpa_file, readable_mdpa)
 
             global_utils.LogTiming("Mesh writing time", start_time)
 
@@ -357,10 +357,10 @@ class MainModelPart:
         open_file.write("\n")
 
 
-    def __WriteNodes(self, open_file):
+    def __WriteNodes(self, open_file, readable_mdpa):
         open_file.write("Begin Nodes\n")
 
-        if READABLE_MDPA:
+        if readable_mdpa:
             max_ID = max(self.nodes.keys())
             global_utils.LogDebug("Max Node ID: " + str(max_ID))
 
@@ -387,8 +387,8 @@ class MainModelPart:
         open_file.write("End Nodes\n\n")
 
 
-    def __WriteElements(self, open_file):
-        if READABLE_MDPA:
+    def __WriteElements(self, open_file, readable_mdpa):
+        if readable_mdpa:
             num_elements = self.NumberOfElements()
             format_str = '{:>' + str(len(str(num_elements))) + '} {:>' + str(self.num_spaces) + '}'
             space = "\t"
@@ -407,8 +407,8 @@ class MainModelPart:
             open_file.write("End Elements // " + element_name + "\n\n")
 
 
-    def __WriteConditions(self, open_file):
-        if READABLE_MDPA:
+    def __WriteConditions(self, open_file, readable_mdpa):
+        if readable_mdpa:
             num_conditions = self.NumberOfConditions()
             format_str = '{:>' + str(len(str(num_conditions))) + '} {:>' + str(self.num_spaces) + '}'
             space = "\t"
@@ -427,7 +427,7 @@ class MainModelPart:
             open_file.write("End Conditions // " + condition_name + "\n\n")
 
 
-    def __Assemble(self):
+    def __Assemble(self, readable_mdpa):
         # TODO Check if this was done before! (same for the submodelparts)
         start_time = time.time()
         global_utils.LogInfo("Assembling Mesh")
@@ -436,14 +436,14 @@ class MainModelPart:
             smp = self.sub_model_parts[smp_name]
             smp.Assemble()
             smp_nodes, smp_elements, smp_conditions = smp.GetMesh()
-            self.__AddNodes(smp_nodes)
+            self.__AddNodes(smp_nodes, readable_mdpa)
             self.__AddElements(smp_elements)
             self.__AddConditions(smp_conditions)
 
         global_utils.LogTiming("Mesh assembling time", start_time)
 
 
-    def __AddNodes(self, smp_nodes):
+    def __AddNodes(self, smp_nodes, readable_mdpa):
         for node_ID in smp_nodes.keys():
             if node_ID in self.nodes.keys():
                 existing_node_coords = self.nodes[node_ID][0]
@@ -451,7 +451,7 @@ class MainModelPart:
                     raise Exception("Node with ID", node_ID, "already exists with different coordinates!")
             else:
                 self.nodes[node_ID] = smp_nodes[node_ID]
-                if READABLE_MDPA:
+                if readable_mdpa:
                     if smp_nodes[node_ID][0][0] > self.max_node_coord_x: self.max_node_coord_x = smp_nodes[node_ID][0][0]
                     if smp_nodes[node_ID][0][1] > self.max_node_coord_y: self.max_node_coord_y = smp_nodes[node_ID][0][1]
                     if smp_nodes[node_ID][0][2] > self.max_node_coord_z: self.max_node_coord_z = smp_nodes[node_ID][0][2]
@@ -486,17 +486,11 @@ class MainModelPart:
 
 
     def NumberOfElements(self):
-        num_elements = 0
-        for smp in self.sub_model_parts.values():
-            num_elements += smp.NumberOfElements()
-        return num_elements
+        return sum([len(val) for val in self.elements.values()])
 
 
     def NumberOfConditions(self):
-        num_conditions = 0
-        for smp in self.sub_model_parts.values():
-            num_conditions += smp.NumberOfConditions()
-        return num_conditions
+        return sum([len(val) for val in self.conditions.values()])
 
 
 class MeshSubmodelPart:
@@ -693,7 +687,7 @@ class MeshSubmodelPart:
         self.__CheckIsAssembled()
         return sum([len(val) for val in self.conditions.values()])
 
-    def WriteMesh(self, open_file):
+    def WriteMesh(self, open_file, readable_mdpa=False):
         """This function writes the SubModelPart to the
         mdpa-file (If wanted).
         """
@@ -705,7 +699,7 @@ class MeshSubmodelPart:
             open_file.write("Begin SubModelPart " + smp_name + "\n")
 
             space = ""
-            if READABLE_MDPA:
+            if readable_mdpa:
                 space = "\t"
 
             self.__WriteNodes(open_file, space)

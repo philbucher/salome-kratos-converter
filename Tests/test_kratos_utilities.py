@@ -303,12 +303,17 @@ class TestMainModelPart(unittest.TestCase):
 
         main_mp.WriteMesh("my_file")
 
+        print(main_mp.NumberOfNodes())
+        print(main_mp.NumberOfElements())
+        print(main_mp.NumberOfConditions())
+
 
 
 
 class MeshSubmodelPart(unittest.TestCase):
 
     def setUp(self):
+        self.write_mesh_readable_ref_file = os.path.join(os.getcwd(), "MeshSubmodelPart_WriteMesh_readable.ref")
         self.write_mesh_ref_file = os.path.join(os.getcwd(), "MeshSubmodelPart_WriteMesh.ref")
         self.write_mesh_info_ref_file = os.path.join(os.getcwd(), "MeshSubmodelPart_WriteMeshInfo.ref")
         self.test_file = os.path.join(os.getcwd(), "test_file.tmp")
@@ -576,9 +581,16 @@ class MeshSubmodelPart(unittest.TestCase):
                 index +=1
 
         with open(self.test_file, "w") as test_file:
+            obj2test.WriteMesh(test_file, readable_mdpa=True)
+
+        self.assertTrue(filecmp.cmp(self.write_mesh_readable_ref_file, self.test_file))
+
+        with open(self.test_file, "w") as test_file:
             obj2test.WriteMesh(test_file)
 
         self.assertTrue(filecmp.cmp(self.write_mesh_ref_file, self.test_file))
+
+        # TODO test the unreadable version
 
     def _test_WriteMeshInfo(self):
         obj2test = kratos_utils.MeshSubmodelPart()
