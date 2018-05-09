@@ -22,7 +22,7 @@ import time
 # Project imports
 import global_utilities as global_utils
 
-READABLE_MDPA = True
+READABLE_MDPA = False
 
 class Node(object):
     def __init__(self, Id, coordinates, nodal_data={}):
@@ -226,7 +226,7 @@ class MainModelPart:
 
     def FileNameExists(self, file_name):
         for smp in self.sub_model_parts.values():
-            smp_file_path = smp.GetFileName()
+            smp_file_name = smp.GetFileName()
             if smp_file_name != "":
                 if file_name == smp_file_name:
                     return True
@@ -303,41 +303,15 @@ class MainModelPart:
     def GetTreeItems(self):
         return sorted(self.sub_model_parts.keys()) # return sorted bcs it is also sorted in the json format!
 
-
-    def WriteMesh(self, mdpa_file_name, info_text=""):
-        try:
-            if mdpa_file_name.endswith('.mdpa'):
-                mdpa_file_name = mdpa_file_name[:-5]
-            import KratosMultiphysics
-            import KratosMultiphysics.FluidDynamicsApplication
-            import KratosMultiphysics.StructuralMechanicsApplication
-
-            model_part = KratosMultiphysics.ModelPart()
-
-            self.__AssembleMesh(model_part)
-
-            file = open(mdpa_file_name + ".mdpa","w")
-            self.__WriteModelPartInfo(model_part, file, info_text)
-            file.close()
-
-            # using append bcs some info was written beforehand
-            model_part_io = KratosMultiphysics.ReorderConsecutiveModelPartIO(mdpa_file_name,
-                                                                             KratosMultiphysics.IO.APPEND)
-            model_part_io.WriteModelPart(model_part)
-
-            return True
-
-        except ImportError:
-            global_utils.LogError("Loading Kratos failed!")
-            return False
-
-    def WriteMesh(self, mdpa_file_path, info_text=""):
+    def WriteMesh(self, mdpa_file_path, info_text="", readable_mdpa=False): # TODO use this
         self.__Assemble() # TODO only do this if sth has changed
 
         start_time = time.time()
         global_utils.LogInfo("Writing Mesh")
 
         # Write Header
+        if not mdpa_file_path.endswith('.mdpa'):
+             mdpa_file_path += ".mdpa"
         with open(mdpa_file_path,"w") as mdpa_file:
             self.__WriteMeshInfo(mdpa_file, info_text)
             mdpa_file.write("\nBegin ModelPartData\n//  VARIABLE_NAME value\nEnd ModelPartData\n\n")
@@ -484,14 +458,14 @@ class MainModelPart:
 
 
     def __AddElements(self, smp_elements):
-        self.__AssembleGeometricEntities(smp_elements, self.elements)
+        self.__AddGeometricEntities(smp_elements, self.elements)
 
 
     def __AddConditions(self, smp_conditions):
-        self.__AssembleGeometricEntities(smp_conditions, self.conditions)
+        self.__AddGeometricEntities(smp_conditions, self.conditions)
 
 
-    def __AssembleGeometricEntities(self, smp_entities, all_entities):
+    def __AddGeometricEntities(self, smp_entities, all_entities):
         id_index = sum([len(val) for val in all_entities.values()]) + 1
         for entity_name in sorted(smp_entities.keys()):
             entities = smp_entities[entity_name]
@@ -507,87 +481,6 @@ class MainModelPart:
                     id_index += 1
 
 
-    # def __AssembleMesh(self, model_part):
-    #     all_nodes = {}
-    #     all_elements = {}
-    #     all_conditions = {}
-
-    #     for smp_name, smp in self.sub_model_parts.items():
-    #         smp.Assemble()
-    #         smp_nodes, smp_elements, smp_conditions = smp.GetMesh()
-    #         self.__AssembleNodes(smp_nodes, all_nodes)
-    #         self.__AssembleGeometricEntities(smp_elements,   all_elements)
-    #         self.__AssembleGeometricEntities(smp_conditions, all_conditions)
-
-    #     self.__AddNodes(all_nodes, model_part)
-    #     self.__AddGeometricEntities(all_elements, model_part, "Element")
-    #     self.__AddGeometricEntities(all_conditions, model_part, "Condition")
-
-    #     for smp_name, smp in self.sub_model_parts.items():
-    #         self.__AddSubModelPart(smp_name, smp, model_part)
-
-
-    # def __AssembleNodes(self, smp_nodes, all_nodes):
-    #     for node_ID in smp_nodes.keys():
-    #         if node_ID in all_nodes.keys():
-    #             existing_node_coords = all_nodes[node_ID][0]
-    #             if existing_node_coords != smp_nodes[node_ID][0]:
-    #                 err_msg =  'Node with ID" ' + str(node_ID) + '" already exists with different coordinates!\n'
-    #                 err_msg += 'Existing Cooridnates: ' + str(existing_node_coords) + '\n'
-    #                 err_msg += 'New Coordinates: ' + str(smp_nodes[node_ID])
-    #                 raise RuntimeError(err_msg)
-    #         else:
-    #             all_nodes[node_ID] = smp_nodes[node_ID]
-
-
-    # def __AddNodes(self, all_nodes, model_part):
-    #     for node_ID in sorted(all_nodes.keys()):
-    #         this_node = all_nodes[node_ID]
-    #         node_coords = this_node[0]
-    #         n_x = node_coords[0]
-    #         n_y = node_coords[1]
-    #         n_z = node_coords[2]
-    #         kratos_node = model_part.CreateNewNode(node_ID, n_x, n_y, n_z) # Id, X, Y, Z
-
-    #         nodal_data = this_node[1]
-    #         if len(nodal_data) > 0: # NodalData to write is present
-    #             for var, value in nodal_data.items():
-    #                 variable = KratosMultiphysics.KratosGlobals.GetVariable(var)
-    #                 kratos_node.SetSolutionStepValue(variable,0,value)
-
-
-
-
-    # def __AddGeometricEntities(self, all_entities, model_part, entity_type):
-    #     if entity_type == "Element":
-    #         fct_ptr = model_part.CreateNewElement
-    #     elif entity_type == "Condition":
-    #         fct_ptr = model_part.CreateNewCondition
-    #     else:
-    #         raise Exception("Wrong entity type")
-
-    #     prop = model_part.GetProperties()[0]
-
-    #     for entity_name, entities in all_entities.items():
-    #         for entity in entities:
-    #             entity_id = entity.GetID()
-    #             entity_nodes = entity.GetNodeList()
-
-    #             kratos_entity = fct_ptr(entity_name, entity_id, entity_nodes, prop)
-
-    #             if entity.HasEntityData():
-    #                 for var, value in entity.GetEntityData().items():
-    #                     variable = KratosMultiphysics.KratosGlobals.GetVariable(var)
-    #                     kratos_entity.SetValue(variable,0,value)
-
-
-    # def __AddSubModelPart(self, smp_name, smp, model_part):
-    #     kratos_smp = model_part.CreateSubModelPart(smp_name)
-
-    #     kratos_smp.AddNodes(smp.GetNodeIds())
-    #     kratos_smp.AddElements(smp.GetElementIds())
-    #     kratos_smp.AddConditions(smp.GetConditionIds())
-    #
     def NumberOfNodes(self):
         return len(self.nodes)
 
@@ -662,8 +555,8 @@ class MeshSubmodelPart:
         """
         default_smp_info_dict = {
             "smp_name"      : "PLEASE_SPECIFY_SUBMODELPART_NAME",
-            "smp_file_name" : "default",
-            "smp_file_path" : "default"
+            "smp_file_name" : "",
+            "smp_file_path" : ""
         }
 
         for k,v in default_smp_info_dict.items():

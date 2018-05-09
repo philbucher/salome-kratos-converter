@@ -125,6 +125,7 @@ class TestKratosEntity(unittest.TestCase):
 
 
 class TestMainModelPart(unittest.TestCase):
+    maxDiff = None # this is needed to get the output of "self.assertDictEqual"
 
     def setUp(self):
 
@@ -178,11 +179,10 @@ class TestMainModelPart(unittest.TestCase):
 
         self.mp_dict={'domain_custom': self.smp1_mesh_dict}
 
-        self.serialized_mp={'domain_custom': {'nodes_read': {1: [[0.0, 0.0, 0.0], {}], 2: [[5.0, 0.0, 0.0], {}], 3: [[5.0, 1.0, 0.0], {}], 4: [[0.0, 1.0, 0.0], {}], 5: [[0.2, 0.0, 0.0], {}], 6: [[0.4, 0.0, 0.0], {}], 7: [[1.0, 1.0, 0.0], {}], 8: [[0.2, 1.0, 0.0], {}], 9: [[0.4, 1.0, 0.0], {}]},
-                            'submodelpart_information': {'smp_name': 'domain_custom', 'smp_file_name': 'domain', 'smp_file_path': '/Examples/Structure/Test_1_2D.salome/dat-files/domain.dat'}, 'geom_entities_read': [[29, 204, [4, 1, 5, 6], {}], [28, 204, [4, 1, 2, 3], {}], [23, 102, [1, 2], {}], [24, 102, [2, 3], {}], [25, 102, [3, 4], {}], [27, 102, [4, 1], {}]],
-                            'mesh_information': {'entity_creation': {204: {'Condition': {'SurfaceCondition2D4N': '5'}, 'Element': {'ShellThinElement3D4N': '2', 'UpdatedLagrangianElement2D4N': '15'}}, 102: {'Condition': {'LineLoadCondition2D2N': '0'}, 'Element': {'TrussElement': '4'}}}, 'write_smp': 1}}}
-
-
+        self.serialized_mp={'domain_custom': {'submodelpart_information': {'smp_name': 'domain_custom', 'smp_file_name': 'domain', 'smp_file_path': '/Examples/Structure/Test_1_2D.salome/dat-files/domain.dat'},
+                            'mesh_information': {'write_smp': 1, 'entity_creation': {204: {'Element': {'UpdatedLagrangianElement2D4N': '15', 'ShellThinElement3D4N': '2'}, 'Condition': {'SurfaceCondition2D4N': '5'}}, 102: {'Element': {'TrussElement': '4'}, 'Condition': {'LineLoadCondition2D2N': '0'}}}},
+                            'nodes_read': {1: [[0.0, 0.0, 0.0], {}], 2: [[5.0, 0.0, 0.0], {}], 3: [[5.0, 1.0, 0.0], {}], 4: [[0.0, 1.0, 0.0], {}], 5: [[0.2, 0.0, 0.0], {}], 6: [[0.4, 0.0, 0.0], {}], 7: [[1.0, 1.0, 0.0], {}], 8: [[0.2, 1.0, 0.0], {}], 9: [[0.4, 1.0, 0.0], {}]},
+                            'geom_entities_read': [[23, 102, [1, 2], {}], [24, 102, [2, 3], {}], [25, 102, [3, 4], {}], [27, 102, [4, 1], {}], [29, 204, [4, 1, 5, 6], {}], [28, 204, [4, 1, 2, 3], {}]]}}
 
     # Incomplete
     def _test_mp_for_correctness(self,MpToTest):
@@ -267,7 +267,7 @@ class TestMainModelPart(unittest.TestCase):
         obj2test.AddMesh(self.smp1_dict,self.smp1_mesh_dict,self.nodes,self.geom_entities)
 
         obj2test.RemoveSubmodelPart('domain_custom')
-        self.assertEqual(obj2test.SubModelPartNameExists('domain_custom'),False)
+        self.assertFalse(obj2test.SubModelPartNameExists('domain_custom'))
 
     def testSerialize(self):
         obj2test = kratos_utils.MainModelPart()
@@ -282,6 +282,27 @@ class TestMainModelPart(unittest.TestCase):
 
         self.assertEqual(obj2test.GetMeshRead(),True)
         self._test_mp_for_correctness(obj2test)
+
+    def test_SameEntitiesInDifferentSMPs(self):
+        nodes = {1: [[0.0, 0.0, 0.0],{}], 2: [[5.0, 0.0, 0.0],{}], 3: [[5.0, 1.0, 0.0],{}]}
+
+        entity_1 = global_utils.GeometricEntity(23, 102, [1,2])
+        entity_2 = global_utils.GeometricEntity(24, 102, [2,3])
+
+        geom_entities = {102 : [entity_1, entity_2]}
+
+        smp_dict_1 = {'smp_name': 'domain_1'}
+        smp_dict_2 = {'smp_name': 'domain_2'}
+
+        smp_mesh ={'write_smp': 1, 'entity_creation': {102: {'Element': {'TrussElement': '15'}}}}
+
+        main_mp = kratos_utils.MainModelPart()
+
+        main_mp.AddMesh(smp_dict_1, smp_mesh, nodes, geom_entities)
+        main_mp.AddMesh(smp_dict_2, smp_mesh, nodes, geom_entities)
+
+        main_mp.WriteMesh("my_file")
+
 
 
 
@@ -520,14 +541,12 @@ class MeshSubmodelPart(unittest.TestCase):
     def test_GetFileName(self):
         obj2test = kratos_utils.MeshSubmodelPart()
 
-        with self.assertRaisesRegex(RuntimeError,"MeshSubmodelPart is not properly initialized!"):
-            obj2test.GetFileName()
+        self.assertEqual(obj2test.GetFileName(), "")
 
     def test_GetFilePath(self):
         obj2test = kratos_utils.MeshSubmodelPart()
 
-        with self.assertRaisesRegex(RuntimeError,"MeshSubmodelPart is not properly initialized!"):
-            obj2test.GetFilePath()
+        self.assertEqual(obj2test.GetFilePath(), "")
 
     def test_WriteMesh(self):
         obj2test = kratos_utils.MeshSubmodelPart()
@@ -593,8 +612,8 @@ class MeshSubmodelPart(unittest.TestCase):
         # these are the default values
         default_smp_info_dict = {
             "smp_name"      : "PLEASE_SPECIFY_SUBMODELPART_NAME",
-            "smp_file_name" : "default",
-            "smp_file_path" : "default"
+            "smp_file_name" : "",
+            "smp_file_path" : ""
         }
 
         dict2validate = {}
