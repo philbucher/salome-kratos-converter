@@ -74,7 +74,12 @@ class Node(object):
 
 class KratosEntity(object):
     def __init__(self, origin_entity, name, property_ID):
-        self.origin_entity = origin_entity
+        self.is_node = False
+        if isinstance(origin_entity, int):
+            self.is_node = True
+
+        self.origin_entity = origin_entity # int for Node, GeometricEntitySalome for Element/Condition
+
         self.name = name
         self.property_ID = property_ID
         self.new_ID = -1
@@ -115,7 +120,7 @@ class KratosEntity(object):
             for node in self.origin_entity.GetNodeList():
                 line += space + str(node)
 
-            if DEBUG:
+            if global_utils.DEBUG:
                 line += " // " + str(self.origin_entity.GetID()) # add the origin ID
 
         return line
@@ -222,7 +227,7 @@ class MainModelPart:
     def FileNameExists(self, file_name):
         for smp in self.sub_model_parts.values():
             smp_file_path = smp.GetFileName()
-            if smp_file_name != ""
+            if smp_file_name != "":
                 if file_name == smp_file_name:
                     return True
         return False
@@ -231,7 +236,7 @@ class MainModelPart:
     def FilePathExists(self, file_path):
         for smp in self.sub_model_parts.values():
             smp_file_path = smp.GetFilePath()
-            if smp_file_path != ""
+            if smp_file_path != "":
                 if file_path == smp_file_path:
                     return True
         return False
@@ -326,7 +331,7 @@ class MainModelPart:
             global_utils.LogError("Loading Kratos failed!")
             return False
 
-    def WriteMesh(self, file, info_text=""):
+    def WriteMesh(self, mdpa_file_path, info_text=""):
         self.__Assemble() # TODO only do this if sth has changed
 
         start_time = time.time()
@@ -334,23 +339,23 @@ class MainModelPart:
 
         # Write Header
         with open(mdpa_file_path,"w") as mdpa_file:
-            self.__WriteMeshInfo(file, info_text)
-            file.write("\nBegin ModelPartData\n//  VARIABLE_NAME value\nEnd ModelPartData\n\n")
-            file.write("Begin Properties 0\nEnd Properties\n\n")
+            self.__WriteMeshInfo(mdpa_file, info_text)
+            mdpa_file.write("\nBegin ModelPartData\n//  VARIABLE_NAME value\nEnd ModelPartData\n\n")
+            mdpa_file.write("Begin Properties 0\nEnd Properties\n\n")
 
             # Write Nodes
-            self.__WriteNodes(file)
+            self.__WriteNodes(mdpa_file)
 
             # Write Elements
-            self.__WriteElements(file)
+            self.__WriteElements(mdpa_file)
 
             # Write Conditions
-            self.__WriteConditions(file)
+            self.__WriteConditions(mdpa_file)
 
             # Write SubModelParts
             for smp_name in sorted(self.sub_model_parts.keys()):
                 smp = self.sub_model_parts[smp_name]
-                smp.WriteMesh(file)
+                smp.WriteMesh(mdpa_file)
 
             global_utils.LogTiming("Mesh writing time", start_time)
 
@@ -373,13 +378,13 @@ class MainModelPart:
         open_file.write("// Number of SubModelParts: " + str(len(self.sub_model_parts)) + "\n")
         for smp_name in sorted(self.sub_model_parts.keys()):
             smp = self.sub_model_parts[smp_name]
-            smp.WriteMeshInfo(file)
+            smp.WriteMeshInfo(open_file)
 
         open_file.write("\n")
 
 
-    def __WriteNodes(self, file):
-        file.write("Begin Nodes\n")
+    def __WriteNodes(self, open_file):
+        open_file.write("Begin Nodes\n")
 
         if READABLE_MDPA:
             max_ID = max(self.nodes.keys())
@@ -395,7 +400,7 @@ class MainModelPart:
         global_utils.LogDebug("Node Format String: " + str(format_str))
 
         for ID in sorted(list(self.nodes.keys())):
-            coords = self.nodes[ID]
+            coords = self.nodes[ID][0]
 
             coords = [round(coords[0], self.precision),
                       round(coords[1], self.precision),
@@ -403,12 +408,12 @@ class MainModelPart:
 
             line = format_str.format(str(ID), coords[0], str(coords[1]), str(coords[2])) + "\n"
 
-            file.write(line)
+            open_file.write(line)
 
-        file.write("End Nodes\n\n")
+        open_file.write("End Nodes\n\n")
 
 
-    def __WriteElements(self, file):
+    def __WriteElements(self, open_file):
         if READABLE_MDPA:
             num_elements = self.NumberOfElements()
             format_str = '{:>' + str(len(str(num_elements))) + '} {:>' + str(self.num_spaces) + '}'
@@ -420,15 +425,15 @@ class MainModelPart:
         global_utils.LogDebug("Element Format String: " + str(format_str))
 
         for element_name in sorted(list(self.elements.keys())):
-            file.write("Begin Elements " + element_name + "\n")
+            open_file.write("Begin Elements " + element_name + "\n")
             elements_by_name = self.elements[element_name]
             for elem in elements_by_name:
-                file.write(elem.GetWriteLine(format_str, space) + "\n")
+                open_file.write(elem.GetWriteLine(format_str, space) + "\n")
 
-            file.write("End Elements // " + element_name + "\n\n")
+            open_file.write("End Elements // " + element_name + "\n\n")
 
 
-    def __WriteConditions(self, file):
+    def __WriteConditions(self, open_file):
         if READABLE_MDPA:
             num_conditions = self.NumberOfConditions()
             format_str = '{:>' + str(len(str(num_conditions))) + '} {:>' + str(self.num_spaces) + '}'
@@ -440,12 +445,12 @@ class MainModelPart:
         global_utils.LogDebug("Condition Format String: " + str(format_str))
 
         for condition_name in sorted(list(self.conditions.keys())):
-            file.write("Begin Conditions " + condition_name + "\n")
+            open_file.write("Begin Conditions " + condition_name + "\n")
             conditions_by_name = self.conditions[condition_name]
             for cond in conditions_by_name:
-                file.write(cond.GetWriteLine(format_str, space) + "\n")
+                open_file.write(cond.GetWriteLine(format_str, space) + "\n")
 
-            file.write("End Conditions // " + condition_name + "\n\n")
+            open_file.write("End Conditions // " + condition_name + "\n\n")
 
 
     def __Assemble(self):
@@ -795,7 +800,7 @@ class MeshSubmodelPart:
         self.__CheckIsAssembled()
         return sum([len(val) for val in self.conditions.values()])
 
-    def WriteMesh(self, file):
+    def WriteMesh(self, open_file):
         """This function writes the SubModelPart to the
         mdpa-file (If wanted).
         """
@@ -804,49 +809,49 @@ class MeshSubmodelPart:
         # Write Header
         if self.mesh_dict["write_smp"]:
             smp_name = self.smp_info_dict["smp_name"]
-            file.write("Begin SubModelPart " + smp_name + "\n")
+            open_file.write("Begin SubModelPart " + smp_name + "\n")
 
             space = ""
             if READABLE_MDPA:
                 space = "\t"
 
-            self.__WriteNodes(file, space)
-            self.__WriteElements(file, space)
-            self.__WriteConditions(file, space)
+            self.__WriteNodes(open_file, space)
+            self.__WriteElements(open_file, space)
+            self.__WriteConditions(open_file, space)
 
-            file.write("End SubModelPart // " + smp_name + "\n\n")
+            open_file.write("End SubModelPart // " + smp_name + "\n\n")
 
 
-    def __WriteNodes(self, file, space):
+    def __WriteNodes(self, open_file, space):
         """This function write the SubModelPartNodes to the
         mdpa-file.
         Note that these are only the Ids of the Nodes
         """
         self.__CheckIsAssembled()
 
-        file.write(space + "Begin SubModelPartNodes\n")
+        open_file.write(space + "Begin SubModelPartNodes\n")
 
         for ID in sorted(self.nodes.keys()):
-            file.write(space + space + str(ID) + "\n")
+            open_file.write(space + space + str(ID) + "\n")
 
-        file.write(space + "End SubModelPartNodes\n")
+        open_file.write(space + "End SubModelPartNodes\n")
 
 
-    def __WriteElements(self, file, space):
+    def __WriteElements(self, open_file, space):
         """This function write the SubModelPartElements to the
         mdpa-file.
         """
-        self.__WriteEntityIds(file, space, "Elements", self.elements)
+        self.__WriteEntityIds(open_file, space, "Elements", self.elements)
 
 
-    def __WriteConditions(self, file, space):
+    def __WriteConditions(self, open_file, space):
         """This functin write the SubModelPartConditions to the
         mdpa-file.
         """
-        self.__WriteEntityIds(file, space, "Conditions", self.conditions)
+        self.__WriteEntityIds(open_file, space, "Conditions", self.conditions)
 
 
-    def __WriteEntityIds(self, file, space, entity_type_name, entities):
+    def __WriteEntityIds(self, open_file, space, entity_type_name, entities):
         """This function writes the Ids of the entities to the
         mdpa file.
         Note that these are only the Ids of the entities
@@ -855,25 +860,25 @@ class MeshSubmodelPart:
 
         smp_entities_name = "SubModelPart" + entity_type_name
 
-        file.write(space + "Begin " + smp_entities_name + "\n")
+        open_file.write(space + "Begin " + smp_entities_name + "\n")
 
         for entity_name in sorted(entities.keys()):
             for entity in entities[entity_name]:
-                file.write(space + space + str(entity.GetID()) + "\n")
+                open_file.write(space + space + str(entity.GetID()) + "\n")
 
-        file.write(space + "End " + smp_entities_name + "\n")
+        open_file.write(space + "End " + smp_entities_name + "\n")
 
 
-    def WriteMeshInfo(self, file):
+    def WriteMeshInfo(self, open_file):
         """This function is called by the parent class to write info about this
         SubModelPart to the header of the mdpa-file
         """
         self.__CheckIsAssembled()
         if self.mesh_dict["write_smp"]:
-            file.write("// SubModelPart " + self.smp_info_dict["smp_name"] + "\n")
-            file.write("//   Number of Nodes: " + str(self.NumberOfNodes()) + "\n")
-            file.write("//   Number of Elements: " + str(self.NumberOfElements()) + "\n")
-            file.write("//   Number of Conditions: " + str(self.NumberOfConditions()) + "\n")
+            open_file.write("// SubModelPart " + self.smp_info_dict["smp_name"] + "\n")
+            open_file.write("//   Number of Nodes: " + str(self.NumberOfNodes()) + "\n")
+            open_file.write("//   Number of Elements: " + str(self.NumberOfElements()) + "\n")
+            open_file.write("//   Number of Conditions: " + str(self.NumberOfConditions()) + "\n")
 
 
     def __CheckIsAssembled(self):
