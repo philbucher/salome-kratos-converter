@@ -58,7 +58,7 @@ Check out the **Examples** Folder to see how the Converter can be used.
 
 
 ## Enhanced Functionalities:
-At the beginning of the file `converter_utilities.py`, the user can select more advanced options:
+At the beginning of the file `global_utilities.py`, the user can select more advanced options:
 * DEBUG: This flag enables debugging, which includes:
     * DEBUG output in logging
     * In the mdpa-file, each geometrical entity (Elements and Conditions) is appended with the ID of the SALOME entity it was created with
