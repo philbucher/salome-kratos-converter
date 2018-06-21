@@ -156,10 +156,10 @@ class KratosEntity(object):
 
 class Element(KratosEntity):
     def __init__(self, origin_entity, name, property_ID):
-        super().__init__(origin_entity, name, property_ID)
+        super(Element, self).__init__(origin_entity, name, property_ID)
 
     def __str__(self):
-        return "Element | " + super().__str__()
+        return "Element | " + super(Element, self).__str__()
 
     __repr__ = __str__
 
@@ -167,10 +167,10 @@ class Element(KratosEntity):
 
 class Condition(KratosEntity):
     def __init__(self, origin_entity, name, property_ID):
-        super().__init__(origin_entity, name, property_ID)
+        super(Condition, self).__init__(origin_entity, name, property_ID)
 
     def __str__(self):
-        return "Condition | " + super().__str__()
+        return "Condition | " + super(Condition, self).__str__()
 
     __repr__ = __str__
 

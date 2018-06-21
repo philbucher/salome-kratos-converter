@@ -93,7 +93,7 @@ class BaseWindow(): # This is the base class for all window classes
 # This class is the main WIndow of the GUI
 class GUIObject(BaseWindow): # This is the main Window
     def __init__(self, root_window, model_part): # Constructor
-        super().__init__(root_window, "SALOME Kratos Converter")
+        super(GUIObject, self).__init__(root_window, "SALOME Kratos Converter")
 
         global_utils.LogInfo("Initializing Main Window")
 
@@ -422,7 +422,7 @@ class GUIObject(BaseWindow): # This is the main Window
 class ReadMeshWindow(BaseWindow):
     def __init__(self, master, smp_name=None):
         window = tk.Toplevel(master.GetWindow())
-        super().__init__(window, "Read Mesh", master)
+        super(ReadMeshWindow, self).__init__(window, "Read Mesh", master)
 
         self.file_parsed = False
         self.edited_mesh = False
@@ -696,7 +696,7 @@ class ReadMeshWindow(BaseWindow):
 class EntrySelectionWindow(BaseWindow):
     def __init__(self, master, salome_identifier, arguments=[]):
         window = tk.Toplevel(master.GetWindow())
-        super().__init__(window, "Select Type of Entity", master)
+        super(EntrySelectionWindow, self).__init__(window, "Select Type of Entity", master)
 
         self.salome_identifier = salome_identifier
         self._InitializeWidgets()
@@ -843,7 +843,7 @@ class EntrySelectionWindow(BaseWindow):
 class KratosEntitySelectionWindow(BaseWindow):
     def __init__(self, master, string_var, selection, num_nodes):
         window = tk.Toplevel(master.GetWindow())
-        super().__init__(window, "Select Entity", master)
+        super(KratosEntitySelectionWindow, self).__init__(window, "Select Entity", master)
 
         self.string_var = string_var
         self.num_nodes = num_nodes
@@ -881,7 +881,7 @@ class KratosEntitySelectionWindow(BaseWindow):
 class FileSelectionWindow(BaseWindow):
     def __init__(self, master, json_dict):
         window = tk.Toplevel(master.GetWindow())
-        super().__init__(window, "Select Files", master)
+        super(FileSelectionWindow, self).__init__(window, "Select Files", master)
         self.json_dict = json_dict
         self.file_names = sorted(json_dict.keys())
         self.num_files = len(self.file_names)
