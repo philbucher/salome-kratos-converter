@@ -358,13 +358,14 @@ class GeometricEntity:
     """
     This class is a generic geometric entity
     """
-    def __init__(self, origin_ID, geometry_identifier, node_list, entity_data={}):
+    def __init__(self, origin_ID, geometry_identifier, node_list, entity_data=None):
         self.origin_ID = origin_ID
         self.geometry_identifier = geometry_identifier
         self.node_list = node_list # The order or nodes has to be compatible with Kratos
         self.entity_data = entity_data # Nodal-, Elemental- or ConditionalData
+        if self.entity_data == None: # this is done bcs default args are shared!
+            self.entity_data = {}
         self.child_objects = {}
-
 
     def __str__(self):
         stringbuf = "GeometricEntity | "
@@ -375,7 +376,6 @@ class GeometricEntity:
         return stringbuf
 
     __repr__ = __str__
-
 
     def __eq__(self, Other):
         if self.origin_ID != Other.origin_ID:
@@ -388,27 +388,23 @@ class GeometricEntity:
             return False
         return True
 
-
     def GetNodeList(self):
         return self.node_list
 
-
     def GetID(self):
-
-        print("RRRR")
         return self.origin_ID
-
 
     def HasEntityData(self):
         return len(self.entity_data) > 0
 
-
     def GetEntityData(self):
         return self.entity_data
 
+    def SetEntityData(self, data_name, data_value):
+        self.entity_data[data_name] = data_value
+
     def GetGeometryIdentifier(self):
         return self.geometry_identifier
-
 
     def GetChildObject(self, name_entity, class_object, propID):
         """
@@ -421,7 +417,6 @@ class GeometricEntity:
             self.child_objects[name_entity] = class_object(self, name_entity, propID)
 
         return self.child_objects[name_entity]
-
 
     def Serialize(self):
         """ This function serializes the object """
