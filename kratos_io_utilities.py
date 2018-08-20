@@ -24,18 +24,31 @@ import global_utilities as global_utils
 
 READABLE_MDPA = False
 
+
+def CreateNode(node_id, coords, nodal_data={}):
+    '''Wrapper function for once the Node-Class will be used'''
+    if node_id <= 0:
+        raise Exception("The NodeID has to be larger than 0!")
+    if type(coords) != list:
+        raise Exception("The NodeCoords have to be provided as a list!")
+    if len(coords) != 3:
+        raise Exception("The NodeCoords have to consist of three doubles!")
+    return [coords, nodal_data]
+
 class Node(object):
-    def __init__(self, Id, coordinates, nodal_data={}):
+    def __init__(self, Id, coordinates, nodal_data=None):
         self.Id = Id
         self.coordinates = coordinates
         self.nodal_data = nodal_data
+        if self.nodal_data == None: # this is done bcs default args are shared!
+            self.nodal_data = {}
 
         if not type(coordinates) == list:
-            raise TypeError('type of "coordinates" should be list, received: ' + str(type(coordinates)))
+            raise TypeError('type of "coordinates" should be "list", received: ' + str(type(coordinates)))
         if not len(coordinates) == 3:
             raise Exception('Coordinates have to be three doubles!')
         if not type(nodal_data) == dict:
-            raise TypeError('type of "nodal_data" should be dict, received: ' + str(type(nodal_data)))
+            raise TypeError('type of "nodal_data" should be "dict", received: ' + str(type(nodal_data)))
 
     def GetId(self):
         return self.Id
@@ -48,6 +61,9 @@ class Node(object):
 
     def GetNodalData(self):
         return self.nodal_data
+
+    def SetNodalData(self, data_name, data_value):
+        self.entity_data[data_name] = data_value
 
     def Serialize(self):
         """This function returns the serialized node
@@ -151,6 +167,9 @@ class KratosEntity(object):
 
     def GetEntityData(self):
         return self.origin_entity.GetEntityData()
+
+    def SetEntityData(self, data_name, data_value):
+        self.origin_entity.SetEntityData(data_name, data_value)
 
 
 
@@ -326,6 +345,15 @@ class MainModelPart:
             # Write Conditions
             self.__WriteConditions(mdpa_file, readable_mdpa)
 
+            # Write Nodal Data
+            self.__WriteNodalData(mdpa_file, readable_mdpa)
+
+            # Write Elemental Data
+            self.__WriteGeometricalEntityData(mdpa_file, readable_mdpa, self.elements, "Element")
+
+            # Write Conditional Data
+            self.__WriteGeometricalEntityData(mdpa_file, readable_mdpa, self.conditions, "Condition")
+
             # Write SubModelParts
             for smp_name in sorted(self.sub_model_parts.keys()):
                 smp = self.sub_model_parts[smp_name]
@@ -349,7 +377,8 @@ class MainModelPart:
         open_file.write("// Number of Nodes: " + str(self.NumberOfNodes()) + "\n")
         open_file.write("// Number of Elements: " + str(self.NumberOfElements()) + "\n")
         open_file.write("// Number of Conditions: " + str(self.NumberOfConditions()) + "\n")
-        open_file.write("// Number of SubModelParts: " + str(len(self.sub_model_parts)) + "\n")
+        num_smps_to_write = sum([smp.WriteSubModelPart() for smp in self.sub_model_parts.values()])
+        open_file.write("// Number of SubModelParts: " + str(num_smps_to_write) + "\n")
         for smp_name in sorted(self.sub_model_parts.keys()):
             smp = self.sub_model_parts[smp_name]
             smp.WriteMeshInfo(open_file)
@@ -406,6 +435,83 @@ class MainModelPart:
 
             open_file.write("End Elements // " + element_name + "\n\n")
 
+    def __WriteNodalData(self, open_file, readable_mdpa):
+        all_geom_entity_data = {}
+
+        # Extracting the Data from the Nodes
+        for node_id in sorted(list(self.nodes.keys())):
+            node = self.nodes[node_id]
+            nodal_data = node[1]
+            if len(nodal_data) > 0:
+                for var_name, var_data in nodal_data.items():
+                    if not var_name in all_geom_entity_data:
+                        all_geom_entity_data[var_name] = {}
+                    all_geom_entity_data[var_name][node_id] = var_data
+
+        self.__WriteEntityData(open_file, readable_mdpa, all_geom_entity_data, "Nod")
+
+    def __WriteGeometricalEntityData(self, open_file, readable_mdpa, geom_entities, entity_name):
+        all_geom_entity_data = {}
+
+        # Extracting the Data from the geom_entities
+        for geom_entity_name in sorted(list(geom_entities.keys())):
+            geom_entities_by_name = geom_entities[geom_entity_name]
+            for geom_entity in geom_entities_by_name:
+                if geom_entity.HasEntityData():
+                    geom_entity_data = geom_entity.GetEntityData()
+                    geom_entity_id = geom_entity.GetID()
+                    for var_name, var_data in geom_entity_data.items():
+                        if not var_name in all_geom_entity_data:
+                            all_geom_entity_data[var_name] = {}
+                        all_geom_entity_data[var_name][geom_entity_id] = var_data
+
+        self.__WriteEntityData(open_file, readable_mdpa, all_geom_entity_data, entity_name)
+
+    def __WriteEntityData(self, open_file, readable_mdpa, all_geom_entity_data, entity_name):
+        entity_name += "alData" # Convert e.g. "Element" to "ElementalData"
+        if readable_mdpa:
+            space = "    "
+        else:
+            space = ""
+
+        for var_name in sorted(list(all_geom_entity_data.keys())):
+            geom_entity_data_by_var = all_geom_entity_data[var_name]
+            rand_var = next(iter(geom_entity_data_by_var.values())) # gettign a random value to check the type
+            var_type = self.__GetVariableType(rand_var)
+
+            open_file.write("Begin " + entity_name + " " + var_name + "\n")
+
+            if var_type == "scalar":
+                for geom_entity_data_id in sorted(list(geom_entity_data_by_var.keys())):
+                    data = geom_entity_data_by_var[geom_entity_data_id]
+                    open_file.write(space + str(geom_entity_data_id) + " " + str(data) + "\n")
+            elif var_type == "vector":
+                for geom_entity_data_id in sorted(list(geom_entity_data_by_var.keys())):
+                    data = geom_entity_data_by_var[geom_entity_data_id]
+                    open_file.write(space + str(geom_entity_data_id) + " [" + str(len(data)) + "] ( ")
+                    open_file.write(str(data[0]))
+                    for entry in data[1:]:
+                        open_file.write(" , " + str(entry))
+                    open_file.write(" )\n")
+            elif var_type == "matrix":
+                raise NotImplementedError("writting Matrices as Data is not yet implemented!")
+
+            open_file.write("End " + entity_name + " // " + var_name + "\n\n")
+
+    def __GetVariableType(self, variable):
+        if type(variable) == list:
+            if len(variable) == 0:
+                raise Exception("Entity data vector cannot have size 0!")
+            if type(variable[0]) == list:
+                return "matrix"
+            elif isinstance(variable[0], (float, int)):
+                return "vector"
+            else:
+                raise Exception("Wrong data type!", type(variable[0]))
+        elif isinstance(variable, (float, int)):
+            return "scalar"
+        else:
+            raise Exception("Wrong data type!", type(variable))
 
     def __WriteConditions(self, open_file, readable_mdpa):
         if readable_mdpa:
@@ -447,8 +553,16 @@ class MainModelPart:
         for node_ID in smp_nodes.keys():
             if node_ID in self.nodes.keys():
                 existing_node_coords = self.nodes[node_ID][0]
-                if existing_node_coords != smp_nodes[node_ID][0]:
-                    raise Exception("Node with ID", node_ID, "already exists with different coordinates!")
+                new_coords = smp_nodes[node_ID][0]
+                if existing_node_coords != new_coords:
+                    err_msg  = "Node with ID " + str(node_ID) + " already exists with different coordinates!\n"
+                    err_msg += "\tExisting Coords: [" + str(existing_node_coords[0]) + " , "
+                    err_msg += str(existing_node_coords[1]) + " , "
+                    err_msg += str(existing_node_coords[2]) + "]\n"
+                    err_msg += "\tNew Coords: [" + str(new_coords[0]) + " , "
+                    err_msg += str(new_coords[1]) + " , "
+                    err_msg += str(new_coords[2]) + "] "
+                    raise Exception(err_msg)
             else:
                 self.nodes[node_ID] = smp_nodes[node_ID]
                 if readable_mdpa:
@@ -755,6 +869,8 @@ class MeshSubmodelPart:
 
         open_file.write(space + "End " + smp_entities_name + "\n")
 
+    def WriteSubModelPart(self):
+        return self.mesh_dict["write_smp"]
 
     def WriteMeshInfo(self, open_file):
         """This function is called by the parent class to write info about this
