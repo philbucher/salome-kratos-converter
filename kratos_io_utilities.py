@@ -721,7 +721,10 @@ class MeshSubmodelPart:
 
         for geometry_identifier in self.mesh_dict["entity_creation"].keys():
             if geometry_identifier == global_utils.NODE_IDENTIFIER:
-                entities = self.__CreateGeometricEntitiesFromNodes(self.nodes)
+                if geometry_identifier in self.geom_entities_read:
+                    entities = self.geom_entities_read[geometry_identifier] # in case the 101-entities were created outside
+                else:
+                    entities = self.__CreateGeometricEntitiesFromNodes(self.nodes)
             else:
                 entities = self.geom_entities_read[geometry_identifier]
 
