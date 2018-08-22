@@ -382,8 +382,7 @@ class MainModelPart:
         for smp_name in sorted(self.sub_model_parts.keys()):
             smp = self.sub_model_parts[smp_name]
             smp.WriteMeshInfo(open_file)
-        open_file.write("\n// Listing the SubModelParts: " + ', '.join(sorted(self.sub_model_parts.keys())) + "\n")
-
+        open_file.write("\n// Listing the SubModelParts: \"" + '", "'.join(sorted(self.sub_model_parts.keys())) + "\"\n")
 
         open_file.write("\n")
 
