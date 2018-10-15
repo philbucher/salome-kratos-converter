@@ -361,6 +361,8 @@ class MainModelPart:
 
             global_utils.LogTiming("Mesh writing time", start_time)
 
+        self.__ClearAfterWriting()
+
         return True
 
 
@@ -595,6 +597,12 @@ class MainModelPart:
                     entity.SetIsAdded()
                     id_index += 1
 
+    def __ClearAfterWriting(self):
+        """Clearing some old entries
+        Esp since the geometric-entities store the information abt child-elements!
+        """
+        for smp in self.sub_model_parts.values():
+            smp.ClearAfterWriting()
 
     def NumberOfNodes(self):
         return len(self.nodes)
@@ -903,6 +911,14 @@ class MeshSubmodelPart:
         """
         if not self.is_properly_initialized:
             raise RuntimeError("MeshSubmodelPart is not properly initialized!")
+
+    def ClearAfterWriting(self):
+        """Clearing some old entries
+        Esp since the geometric-entities store the information abt child-elements!
+        """
+        for geom_entities_by_key in self.geom_entities_read.values():
+            for geom_entity in geom_entities_by_key:
+                geom_entity.ClearChildObjects()
 
     ##############################################
     ##### Functions related to Serialization #####

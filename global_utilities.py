@@ -418,6 +418,9 @@ class GeometricEntity:
 
         return self.child_objects[name_entity]
 
+    def ClearChildObjects(self):
+        self.child_objects = {}
+
     def Serialize(self):
         """ This function serializes the object """
         serialized_entity = [self.origin_ID,
