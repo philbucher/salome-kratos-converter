@@ -16,18 +16,22 @@ The new version will be working as a full interface in Salome.
  | (__/ _ \ ' \ V / -_) '_|  _/ -_) '_|
   \___\___/_||_\_/\___|_|  \__\___|_|
 ```
-This is a small tool to create mdpa-files form SALOME dat-files. It requires the `tkinter` module of Python.
+This is a small tool to create mdpa-files form SALOME dat-files.
 
 It does/can **NOT** replace GiD! You still have to create a case in GiD and then exchange the *.mdpa-file.
 
-
-
 ## Usage
+
 ### In SALOME
 1. Create a case in SALOME, including the mesh
 2. Create a SubMesh for each SubModelPart (e.g. Inlet, Dirichlet-BC, ...)
 3. Export the Mesh and each SubMesh to a *.dat-file
-### In the Converter
+
+### In the Converter using it directly from Python
+The converter can be directly used from python, see [this example](https://github.com/philbucher/salome-kratos-converter/tree/master/Examples/use_converter_from_python). This way the mesh generation can be done automatically, when used together with the "dump script" functionality of Salome.
+
+### In the Converter using the GUI of the Converter
+Note that this requires the `tkinter` module of Python, which should be available by default
 1. Launch the Converter with `python3 converter_salome_kratos.py`
 2. Read each *.dat-file with the **Read Mesh** Button
     * You are offered a selection of entities that is present in the *.dat-file
@@ -38,18 +42,17 @@ It does/can **NOT** replace GiD! You still have to create a case in GiD and then
         * Property ID (legacy, currently only needed for Fluid cases)
 3. After reading every mesh file, create the *.mdpa-file with the **Write MDPA** Button
 
-### Mesh Refinement
+#### Mesh Refinement
 If you have a set of files on which you want to apply the same operations (e.g. Mesh Refinement), then you can export a "Converter Scheme" from an existing case.
 
 If you import this scheme, you will be asked to provide a set of files on which the same operations are applied.
 
 An example can be found under `/Examples/Fluid/Test_1_2D.salome/dat-files/`
 
-### Examples
+#### Examples
 Check out the **Examples** Folder to see how the Converter can be used.
 
-
-## Additional Information:
+#### Additional Information:
 * Every Entry can be edited by _double-clicking_ on it
 * Every Entry can be deleted with _delete_
 * Cases can be saved and loaded
