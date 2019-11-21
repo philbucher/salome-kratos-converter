@@ -27,9 +27,15 @@ It does/can **NOT** replace GiD! You still have to create a case in GiD and then
 2. Create a SubMesh for each SubModelPart (e.g. Inlet, Dirichlet-BC, ...)
 3. Export the Mesh and each SubMesh to a *.dat-file
 
+---
+
+**NOTE:** The converter can be used either directly in python, OR using the GUI, as explained in the following
+
+---
 ### Using the converter directly directly from Python
 The converter can be directly used from python, see [this example](https://github.com/philbucher/salome-kratos-converter/tree/master/Examples/use_converter_from_python). This way the mesh generation can be done automatically, when used together with the "dump script" functionality of Salome.
 
+---
 ### Using the GUI of the Converter
 Note that this requires the `tkinter` module of Python, which should be available by default
 1. Launch the Converter with `python3 converter_salome_kratos.py`
@@ -67,6 +73,7 @@ Check out the **Examples** Folder to see how the Converter can be used.
     * _Ctrl - e_ : Export Converter Scheme
 * If you want to create Nodal entites (e.g. _NodalConcentratedElement_ or _PointCondition_), create and export a group of Nodes in SALOME. Read this file in the same way and _double-click_ on _Nodes_ to select what you want to assign.
 
+---
 
 ## Enhanced Functionalities:
 At the beginning of the file `global_utilities.py`, the user can select more advanced options:
