@@ -2,19 +2,19 @@
 I used this for a while now and it is working nicely for many applications.
 I noticed however that it is not possible to have overlapping domains, elements and conditions will be created twice, even though they should not be! Now while this has not been a problem for all "standard"-cases, it is still is a bug that unfortunately cannot be fixed without major effort.
 Due to this I have decided to take the opportunity to rewrite the entire converter to be able to provide this feature and also clean things up a lot.
-The new version will be available for the Kratos-Workshop end of March, I will announce it here.
+The new version will be working as a full interface in Salome.
 
 **Therefore this repository will no longer be maintained!**
 
 # SALOME-Kratos Converter
 ```
-  ___   _   _    ___  __  __ ___    _  _____    _ _____ ___  ___  
- / __| /_\ | |  / _ \|  \/  | __|__| |/ / _ \  /_\_   _/ _ \/ __| 
- \__ \/ _ \| |_| (_) | |\/| | _|___| ' <|   / / _ \| || (_) \__ \ 
- |___/_/ \_\____\___/|_|  |_|___|  |_|\_\_|_\/_/ \_\_| \___/|___/ 
-  / __|___ _ ___ _____ _ _| |_ ___ _ _                            
- | (__/ _ \ ' \ V / -_) '_|  _/ -_) '_|                           
-  \___\___/_||_\_/\___|_|  \__\___|_|  
+  ___   _   _    ___  __  __ ___    _  _____    _ _____ ___  ___
+ / __| /_\ | |  / _ \|  \/  | __|__| |/ / _ \  /_\_   _/ _ \/ __|
+ \__ \/ _ \| |_| (_) | |\/| | _|___| ' <|   / / _ \| || (_) \__ \
+ |___/_/ \_\____\___/|_|  |_|___|  |_|\_\_|_\/_/ \_\_| \___/|___/
+  / __|___ _ ___ _____ _ _| |_ ___ _ _
+ | (__/ _ \ ' \ V / -_) '_|  _/ -_) '_|
+  \___\___/_||_\_/\___|_|  \__\___|_|
 ```
 This is a small tool to create mdpa-files form SALOME dat-files. It requires the `tkinter` module of Python.
 
@@ -32,7 +32,7 @@ It does/can **NOT** replace GiD! You still have to create a case in GiD and then
 2. Read each *.dat-file with the **Read Mesh** Button
     * You are offered a selection of entities that is present in the *.dat-file
     * _double-click_ the entity you want to use.
-    * Now you can select 
+    * Now you can select
         * Entity Type
         * Name of Entity (Names available in Kratos can be selected from a list)
         * Property ID (legacy, currently only needed for Fluid cases)
@@ -72,4 +72,4 @@ At the beginning of the file `global_utilities.py`, the user can select more adv
     * In the mdpa-file, each geometrical entity (Elements and Conditions) is appended with the ID of the SALOME entity it was created with
     * When a project is saved, the json-file is formatted in a readable way
 * LOG_TIMING: This flag enables timing output in logging
-* READABLE_MDPA: Use this to get a nicely formatted mdpa file. Works in most cases, but files are larger (~20%) and mdpa writing takes slightly more time 
+* READABLE_MDPA: Use this to get a nicely formatted mdpa file. Works in most cases, but files are larger (~20%) and mdpa writing takes slightly more time
