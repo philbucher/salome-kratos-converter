@@ -86,4 +86,4 @@ At the beginning of the file `global_utilities.py`, the user can select more adv
 
 
 ## Troubleshooting:
-- Problem: Negative Volume when using tetrahedral elements. Try changing the orientation of the geometry (in GEOM module: repair => change orinetation)
+- Problem: Negative Volume when using tetrahedral elements. Try changing the orientation of the geometry (in GEOM module: repair => change orinetation) or the meh itself (in MESH module: Modification => orientation)
