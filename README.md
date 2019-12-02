@@ -83,3 +83,7 @@ At the beginning of the file `global_utilities.py`, the user can select more adv
     * When a project is saved, the json-file is formatted in a readable way
 * LOG_TIMING: This flag enables timing output in logging
 * READABLE_MDPA: Use this to get a nicely formatted mdpa file. Works in most cases, but files are larger (~20%) and mdpa writing takes slightly more time
+
+
+## Troubleshooting:
+- Problem: Negative Volume when using tetrahedral elements. Try changing the orientation of the geometry (in GEOM module: repair => change orinetation)
