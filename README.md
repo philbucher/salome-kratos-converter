@@ -1,3 +1,6 @@
+# Update 05.03.2020:
+The new version can be found [here](https://github.com/philbucher/KratosSalomePlugin). Check [here](https://github.com/philbucher/KratosSalomePlugin/issues/32) for the current status.
+
 # Update 21.02.2019:
 I used this for a while now and it is working nicely for many applications.
 I noticed however that it is not possible to have overlapping domains, elements and conditions will be created twice, even though they should not be! Now while this has not been a problem for all "standard"-cases, it is still is a bug that unfortunately cannot be fixed without major effort.
