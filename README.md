@@ -1,3 +1,6 @@
+# Update 05.03.2020:
+The new version can be found [here](https://github.com/philbucher/KratosSalomePlugin). Check [here](https://github.com/philbucher/KratosSalomePlugin/issues/32) for the current status.
+
 # Update 21.02.2019:
 I used this for a while now and it is working nicely for many applications.
 I noticed however that it is not possible to have overlapping domains, elements and conditions will be created twice, even though they should not be! Now while this has not been a problem for all "standard"-cases, it is still is a bug that unfortunately cannot be fixed without major effort.
@@ -83,3 +86,7 @@ At the beginning of the file `global_utilities.py`, the user can select more adv
     * When a project is saved, the json-file is formatted in a readable way
 * LOG_TIMING: This flag enables timing output in logging
 * READABLE_MDPA: Use this to get a nicely formatted mdpa file. Works in most cases, but files are larger (~20%) and mdpa writing takes slightly more time
+
+
+## Troubleshooting:
+- Problem: Negative Volume when using tetrahedral elements. Try changing the orientation of the geometry (in GEOM module: repair => change orinetation) or the meh itself (in MESH module: Modification => orientation)
