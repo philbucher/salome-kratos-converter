@@ -372,7 +372,7 @@ class MainModelPart:
         '''
         import time
         localtime = time.asctime( time.localtime(time.time()) )
-        open_file.write("// File created on " + localtime + "\n")
+        # open_file.write("// File created on " + localtime + "\n")
         if info_text != "":
             open_file.write("// " + info_text + "\n")
         open_file.write("// Mesh Information:\n")
